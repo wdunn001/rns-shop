@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS entitlements(
 CREATE TABLE IF NOT EXISTS profiles(
   identity TEXT PRIMARY KEY, shipping TEXT, billing TEXT,
   pay_method TEXT, updated REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS lxmf_map(
+  identity TEXT PRIMARY KEY, dest TEXT NOT NULL, updated REAL NOT NULL);
 """
 
 
@@ -99,15 +101,37 @@ class Store:
                              (status, time.time(), order_id))
             self._db.commit()
 
-    _WORKER_COLS = "order_id,identity,items,total,currency,status,lxmf"
+    _WORKER_COLS = "order_id,identity,items,total,currency,status,lxmf,created"
 
     def _worker_rows(self, where):
         with self._lock:
             rows = self._db.execute(
                 f"SELECT {self._WORKER_COLS} FROM orders WHERE {where}").fetchall()
         return [{"order_id": r[0], "identity": r[1], "items": json.loads(r[2]),
-                 "total": r[3], "currency": r[4], "status": r[5], "lxmf": r[6]}
+                 "total": r[3], "currency": r[4], "status": r[5], "lxmf": r[6],
+                 "created": r[7]}
                 for r in rows]
+
+    def order_set_lxmf(self, order_id, dest):
+        with self._lock:
+            self._db.execute("UPDATE orders SET lxmf=? WHERE order_id=?",
+                             (dest, order_id))
+            self._db.commit()
+
+    # ---- lxmf announce map: identity hash -> lxmf.delivery dest hash ----
+    def lxmf_map_put(self, identity, dest):
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO lxmf_map VALUES(?,?,?) ON CONFLICT(identity) DO "
+                "UPDATE SET dest=excluded.dest, updated=excluded.updated",
+                (identity, dest, time.time()))
+            self._db.commit()
+
+    def lxmf_lookup(self, identity):
+        with self._lock:
+            row = self._db.execute(
+                "SELECT dest FROM lxmf_map WHERE identity=?", (identity,)).fetchone()
+        return row[0] if row else None
 
     def orders_unnotified(self):
         return self._worker_rows("status='submitted' AND notified=0")

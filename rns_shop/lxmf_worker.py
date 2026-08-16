@@ -94,11 +94,28 @@ class Worker:
                 RNS.log(f"[rns-shop] worker error: {e}", RNS.LOG_ERROR)
             time.sleep(POLL)
 
+    GIVE_UP_AFTER = 86400  # stop retrying inbox discovery after a day
+
+    def _inbox_for(self, o):
+        """Order's LXMF inbox: explicit (CLI opt-in) or learned from the
+        buyer identity's own lxmf.delivery announce (page purchases)."""
+        if o.get("lxmf"):
+            return o["lxmf"]
+        found = self.store.lxmf_lookup(o["identity"])
+        if found:
+            self.store.order_set_lxmf(o["order_id"], found)
+            RNS.log(f"[rns-shop] learned inbox for {o['identity'][:8]}… "
+                    f"via announce", RNS.LOG_DEBUG)
+        return found
+
     def _tick(self):
         for o in self.store.orders_unnotified():
-            if not o.get("lxmf"):
-                self.store.mark_notified(o["order_id"])  # nothing to send to
-                continue
+            inbox = self._inbox_for(o)
+            if not inbox:
+                if time.time() - (o.get("created") or 0) > self.GIVE_UP_AFTER:
+                    self.store.mark_notified(o["order_id"])  # no inbox found
+                continue  # keep waiting for the buyer's client to announce
+            o = dict(o, lxmf=inbox)
             pay = self.store.order_payment(o["order_id"])
             pay_line = pay["text"] if pay else self.catalog.shop.get(
                 "invoice_note", "Invoice follows.")
@@ -109,6 +126,7 @@ class Worker:
                 self.store.mark_notified(o["order_id"])
                 RNS.log(f"[rns-shop] confirmation sent for {o['order_id']}")
         for o in self.store.orders_unreceipted():
+            o = dict(o, lxmf=self._inbox_for(o))
             digital, physical = [], []
             for e in o["items"]:
                 it = self.catalog.items.get(e["sku"])

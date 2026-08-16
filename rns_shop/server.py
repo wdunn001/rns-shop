@@ -428,6 +428,24 @@ def main():
     dest.register_request_handler(protocol.PATH, response_generator=on_request,
                                   allow=RNS.Destination.ALLOW_ALL)
 
+    # learn buyers' LXMF inboxes from their clients' own announces, so page
+    # purchases get confirmations without asking for an address
+    class _LxmfAnnounces:
+        aspect_filter = "lxmf.delivery"
+
+        def received_announce(self, destination_hash, announced_identity,
+                              app_data):
+            try:
+                _store.lxmf_map_put(
+                    RNS.hexrep(announced_identity.hash, delimit=False),
+                    RNS.hexrep(destination_hash, delimit=False))
+            except Exception:
+                pass
+
+    RNS.Transport.register_announce_handler(_LxmfAnnounces())
+    RNS.log("[rns-shop] listening for lxmf.delivery announces "
+            "(auto-discovers buyer inboxes)")
+
     dest_hex = RNS.hexrep(dest.hash, delimit=False)
     _state["dest"] = dest_hex
     _manifest = manifest.build(dest_hex, _catalog.shop.get("name", "shop"))
