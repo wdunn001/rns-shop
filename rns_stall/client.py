@@ -85,23 +85,28 @@ def main():
 
     identify = _buyer_identity() if args.op in protocol.IDENTIFIED_OPS else None
 
-    # Ordering: opt in to LXMF confirmations by announcing our delivery
-    # destination and telling the stall its hash.
-    if args.op == protocol.OP_ORDER_SUBMIT and not args.no_lxmf and identify:
-        try:
-            RNS.Reticulum(args.config)
-            lxmf_dest = RNS.Destination(identify, RNS.Destination.IN,
-                                        RNS.Destination.SINGLE, "lxmf", "delivery")
-            lxmf_dest.announce()
-            body["lxmf"] = RNS.hexrep(lxmf_dest.hash, delimit=False)
-            print(f"(LXMF inbox announced: {body['lxmf']} — read receipts with "
-                  f"the 'inbox' op)")
-        except Exception as e:
-            print(f"(LXMF opt-in skipped: {e})")
+    # Ordering: opt in to LXMF confirmations. The inbox hash is computable
+    # WITHOUT initializing RNS (meshapi's client owns the one allowed
+    # RNS.Reticulum() init in this process); we announce after the call.
+    lxmf_optin = (args.op == protocol.OP_ORDER_SUBMIT
+                  and not args.no_lxmf and identify)
+    if lxmf_optin:
+        body["lxmf"] = RNS.hexrep(
+            RNS.Destination.hash(identify, "lxmf", "delivery"), delimit=False)
+        print(f"(LXMF inbox attached: {body['lxmf']} — read receipts with "
+              f"the 'inbox' op)")
 
     ok, resp = meshapi_client.call(args.dest, protocol.APP_NAME, aspect,
                                    protocol.PATH, body, config=args.config,
                                    timeout=args.timeout, identify=identify)
+
+    if lxmf_optin and ok:
+        try:  # RNS is initialized by the call above; announce so the stall
+            # can resolve our inbox (the worker retries until it can).
+            RNS.Destination(identify, RNS.Destination.IN, RNS.Destination.SINGLE,
+                            "lxmf", "delivery").announce()
+        except Exception as e:
+            print(f"(inbox announce failed: {e} — run 'inbox' to announce)")
 
     # delivery.get: write the payload to disk instead of dumping bytes to stdout
     if ok and args.op == protocol.OP_DELIVERY and isinstance(resp.get("data"), bytes):
