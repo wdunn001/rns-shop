@@ -17,17 +17,24 @@ unless you're shipping something physical.
 
 >>How buying works
 
-1. Browse the storefront pages (this node, or any stall you found via Beacon).
-2. Call the shop service with a MeshAPI client — identified ops sign the link:
+`F6d8┌─`f  1. Browse the catalog (this node, or any stall Beacon found you)
+`F6d8│`f   2. Set a quantity and hit `!BUY NOW`! — right on the item page
+`F6d8│`f   3. Your RNS identity IS your account (no signup, no password)
+`F6d8│`f   4. Confirmation + receipt arrive by LXMF
+`F6d8└─`f  5. Track orders — and receive digital goods — on the `!my orders`! page
+
+Payment: invoice by LXMF (default), plus Stripe-link handoff and Monero
+(watch-only) where the merchant enables them.
+
+>>For builders (programmatic buying)
+
+The shop is also a MeshAPI service — everything the buttons do, scriptable:
 
 `=
 python3 -m rns_stall.client <dest> catalog.list
 python3 -m rns_stall.client <dest> order.submit --item DEMO-ZINE:1
-python3 -m rns_stall.client <dest> order.status --order-id <id>
+python3 -m rns_stall.client <dest> delivery.get --sku DEMO-ZINE
 `=
-
-3. v1 payment rail = invoice (LXMF). Stripe-link and Monero rails are on the
-   roadmap (M3/M4).
 
 >>Run your own stall
 

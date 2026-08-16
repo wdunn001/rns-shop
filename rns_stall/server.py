@@ -9,6 +9,7 @@ anchor). Buyer identity comes from link.identify() -> remote_identity.
 import argparse
 import json
 import os
+import stat
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -99,22 +100,11 @@ def _dispatch(req, identity_hex):
         items = _items_valid(items)
         if items is None:
             return protocol.err("bad_items", req, "pass items or fill your cart")
-        shipping = str(req.get("shipping", ""))[:MAX_TEXT]
-        note = str(req.get("note", ""))[:MAX_TEXT]
-        lxmf = str(req.get("lxmf", ""))[:64] or None
-        total = _total(items)
-        oid = _store.order_create(identity_hex, items, total,
-                                  _catalog.shop.get("currency", "USD"),
-                                  {"text": shipping} if shipping else None, note,
-                                  lxmf=lxmf)
-        RNS.log(f"[rns-stall] ORDER {oid} from {identity_hex[:8]}… "
-                f"total {total}", RNS.LOG_NOTICE)
-        return protocol.ok({"order_id": oid, "total": total,
-                            "currency": _catalog.shop.get("currency", "USD"),
-                            "payment_options": ["invoice"],
-                            "invoice_note": _catalog.shop.get(
-                                "invoice_note",
-                                "You will receive an LXMF invoice.")}, req)
+        result = _submit_order(identity_hex, items,
+                               str(req.get("shipping", ""))[:MAX_TEXT],
+                               str(req.get("note", ""))[:MAX_TEXT],
+                               str(req.get("lxmf", ""))[:64] or None)
+        return protocol.ok(result, req)
     if op == protocol.OP_ORDER_STATUS:
         o = _store.order_get(identity_hex, str(req.get("order_id", "")))
         return protocol.ok({"order": o}, req) if o else protocol.err("not_found", req)
@@ -163,6 +153,97 @@ def _dispatch(req, identity_hex):
         _store.order_set_xmr(o["order_id"], addr, idx, amount)
         return protocol.ok({"address": addr, "amount_xmr": amount}, req)
     return protocol.err("bad_op", req)
+
+
+def _submit_order(identity_hex, items, shipping="", note="", lxmf=None):
+    """Shared order path: RNS op and the node's local checkout both land here."""
+    total = _total(items)
+    oid = _store.order_create(identity_hex, items, total,
+                              _catalog.shop.get("currency", "USD"),
+                              {"text": shipping} if shipping else None, note,
+                              lxmf=lxmf)
+    RNS.log(f"[rns-stall] ORDER {oid} from {identity_hex[:8]}… total {total}",
+            RNS.LOG_NOTICE)
+    return {"order_id": oid, "total": total,
+            "currency": _catalog.shop.get("currency", "USD"),
+            "payment_options": ["invoice"],
+            "invoice_note": _catalog.shop.get(
+                "invoice_note", "You will receive an LXMF invoice.")}
+
+
+# ---- local checkout API (loopback-only) -------------------------------------
+# The NomadNet node's executable pages (buy.mu / orders.mu) run on the same
+# host and call this. AUTH MODEL: NomadNet already authenticated the buyer —
+# the page script receives the cryptographic `remote_identity` and forwards it;
+# this API binds 127.0.0.1 ONLY and trusts local page scripts. Never expose it.
+class _LocalApiHandler(BaseHTTPRequestHandler):
+    def _json(self, code, obj):
+        body = json.dumps(obj).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self):
+        if self.path != "/order":
+            return self._json(404, {"ok": False, "err": "not_found"})
+        try:
+            req = json.loads(self.rfile.read(
+                int(self.headers.get("Content-Length", 0))))
+            identity = str(req["identity"])
+            assert len(identity) == 32 and int(identity, 16) is not None
+        except Exception:
+            return self._json(400, {"ok": False, "err": "bad_request"})
+        items = _items_valid(req.get("items"))
+        if items is None:
+            return self._json(400, {"ok": False, "err": "bad_items"})
+        out = _submit_order(identity, items,
+                            str(req.get("shipping", ""))[:MAX_TEXT],
+                            str(req.get("note", ""))[:MAX_TEXT])
+        out["ok"] = True
+        return self._json(200, out)
+
+    def do_GET(self):
+        from urllib.parse import parse_qs, urlparse
+        u = urlparse(self.path)
+        q = {k: v[0] for k, v in parse_qs(u.query).items()}
+        identity = q.get("identity", "")
+        if len(identity) != 32:
+            return self._json(400, {"ok": False, "err": "bad_identity"})
+        if u.path == "/orders":
+            return self._json(200, {"ok": True,
+                                    "orders": _store.orders_for_identity(identity)})
+        if u.path == "/deliver":
+            sku = q.get("sku", "")
+            it = _catalog.items.get(sku)
+            if not it or not _store.entitled(identity, sku):
+                return self._json(403, {"ok": False, "err": "not_entitled"})
+            rel = it.get("file")
+            if not rel:
+                return self._json(404, {"ok": False, "err": "no_file"})
+            fp = os.path.realpath(os.path.join(_files_dir, rel))
+            if not fp.startswith(os.path.realpath(_files_dir)) \
+                    or not os.path.isfile(fp):
+                return self._json(404, {"ok": False, "err": "no_file"})
+            data = open(fp, "rb").read()
+            try:  # inline-display small text goods; otherwise report size only
+                text = data.decode("utf-8") if len(data) <= 65536 else None
+            except UnicodeDecodeError:
+                text = None
+            return self._json(200, {"ok": True, "filename": os.path.basename(fp),
+                                    "bytes": len(data), "text": text})
+        return self._json(404, {"ok": False, "err": "not_found"})
+
+    def log_message(self, *a):
+        pass
+
+
+def _start_local_api(port):
+    srv = ThreadingHTTPServer(("127.0.0.1", port), _LocalApiHandler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    RNS.log(f"[rns-stall] local checkout API on 127.0.0.1:{port} "
+            f"(for the node's buy/orders pages)")
 
 
 def on_request(path, data, request_id, link_id, remote_identity, requested_at):
@@ -284,6 +365,8 @@ def main():
     if xmr_rpc:
         _xmr = payments.XmrWatcher(_store, xmr_rpc)
         _xmr.start()
+
+    _start_local_api(int(os.environ.get("STALL_LOCAL_API", "8219")))
 
     threading.Thread(target=_health_loop, args=(dest,), daemon=True).start()
     srv = ThreadingHTTPServer(("0.0.0.0", args.healthz_port), _HealthHandler)

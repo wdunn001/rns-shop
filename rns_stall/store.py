@@ -113,6 +113,14 @@ class Store:
     def orders_all(self):
         return self._worker_rows("1=1 ORDER BY created")
 
+    def orders_for_identity(self, identity):
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT order_id,items,total,currency,status,created FROM orders "
+                "WHERE identity=? ORDER BY created DESC LIMIT 25", (identity,)).fetchall()
+        return [{"order_id": r[0], "items": json.loads(r[1]), "total": r[2],
+                 "currency": r[3], "status": r[4], "created": r[5]} for r in rows]
+
     def order_admin_get(self, order_id):
         with self._lock:
             row = self._db.execute(
