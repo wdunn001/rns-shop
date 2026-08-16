@@ -84,12 +84,11 @@ addr = {k: (E(f"field_{k}") or "").strip() for k in ADDR}
 if not addr["name"]:
     addr["name"] = (E("field_fullname") or "").strip()
 method = (E("field_method") or "").strip()
-# step 2 iff the form was submitted. Detection is belt-and-braces: a `step`
-# text field (prefilled "2") plus the method radio — some clients don't send
-# radios/checkboxes, and neither `*` nor literal name=value link-vars are
-# universally supported, so the CONFIRM link enumerates bare field names only.
-confirmed = (E("field_step") or "").strip() == "2" \
-    or E("field_method") is not None
+# step 2 iff the form was submitted — detected by the `step` marker text
+# field (prefilled "2"). Payment method is NOT chosen at checkout: every
+# enabled rail's instructions come back with the placed order (pay however
+# you like; the rail that settles wins).
+confirmed = (E("field_step") or "").strip() == "2"
 
 # ---------- step 2: place the order ----------
 if confirmed:
@@ -101,16 +100,20 @@ if confirmed:
         body["shipping"] = {k: v for k, v in addr.items() if v}
     out = api_post("/order", body)
     if out.get("ok"):
-        pay = out.get("payment", {})
-        pay_lines = f"`F{G}│`f  `F{W}{esc(pay.get('text', ''))}`f"
+        opts = out.get("payments") or ([out["payment"]] if out.get("payment") else [])
+        pay_lines = []
+        for o in opts:
+            pay_lines.append(f"`F{G}│`f  `F{A}◆ {esc(o.get('label', o.get('method', '')))}`f")
+            pay_lines.append(f"`F{G}│`f    `F{D}{esc(o.get('text', ''))}`f")
+        pay_block = "\n".join(pay_lines) or f"`F{G}│`f  `F{D}(merchant will contact you)`f"
         print(f"""`F{G}┌─`f `!ORDER PLACED`!  `F{D}#{esc(out['order_id'])}`f
 `F{G}│`f
 `F{G}│`f  {qty}× `!{esc(item['title'])}`!  —  `!`F{G}{out['total']:.2f} {esc(out['currency'])}`f`!
 `F{G}│`f
-`F{G}│`f  `!HOW TO PAY`! `F{D}({esc(pay.get('method', 'invoice'))})`f
-{pay_lines}
+`F{G}│`f  `!PAY WHICHEVER WAY SUITS YOU`!
+{pay_block}
 `F{G}│`f
-`F{G}│`f  `F{D}The same instructions arrive by LXMF, with your receipt after payment.`f
+`F{G}│`f  `F{D}Same options arrive by LXMF; your receipt follows payment.`f
 `F{G}└─`f  `F{D}Track it on`f `[my orders`:/page/orders.mu]""")
     else:
         err = out.get("err", "unknown")
@@ -152,16 +155,12 @@ if not confirmed:
 `F{A}│`f  postal   `B{BG}`<12|postal`{esc(addr['postal'])}>`b   country (2-letter) `B{BG}`<4|country`{esc(addr['country'])}>`b
 `F{A}└─`f  `F{D}saved to your profile if you tick remember`f""")
 
-    picked = method or methods[0]["method"]
-    print(f"`F{A}┌─`f `!PAYMENT`!")
-    for m in methods:
-        pre = "|*" if m["method"] == picked else ""
-        print(f"`F{A}│`f  `<^|method|{m['method']}{pre}`{esc(m['label'])}>")
-    # `step` is the submission marker (prefilled "2") — don't edit it; some
-    # clients don't submit radios, and `*` isn't universal.
-    print(f"""`F{A}│`f  note `B{BG}`<24|note`>`b   remember me `<?|save|yes`>   `F{D}confirm code`f `B{BG}`<1|step`2>`b
+    pays = " · ".join(esc(m["label"]).split(" (")[0] for m in methods)
+    # `step` is the submission marker (prefilled "2") — don't edit it.
+    print(f"""`F{A}┌─`f `!FINISH UP`!  `F{D}(pay after ordering — accepted: {pays})`f
+`F{A}│`f  note `B{BG}`<24|note`>`b   remember me `<?|save|yes`>   `F{D}confirm code`f `B{BG}`<1|step`2>`b
 `F{A}└─`f""")
-    link_fields = ["qty", "method", "note", "save", "step"]
+    link_fields = ["qty", "note", "save", "step"]
     if physical:
         link_fields += ["fullname"] + [k for k in ADDR if k != "name"]
     fields = "|".join(link_fields)

@@ -56,7 +56,9 @@ else:
             except Exception:
                 pay = None
             if pay:
-                print(f"`F{A}│`f  `F{W}HOW TO PAY:`f `F{D}{esc(pay['text'])}`f")
+                print(f"`F{A}│`f  `F{W}HOW TO PAY (any of):`f")
+                for line in (pay.get("text") or "").splitlines():
+                    print(f"`F{A}│`f    `F{D}{esc(line)}`f")
         # deliver owned digital goods inline
         for e in o["items"]:
             if o["status"] in ("paid", "fulfilled"):

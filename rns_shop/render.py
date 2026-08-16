@@ -146,7 +146,7 @@ def index_page(catalog, dest_hex):
 `F{ACCENT}┌─`f  1. pick an item · set a quantity · hit `!BUY NOW`!
 `F{ACCENT}│`f   2. your RNS identity IS your account — nothing to register
 `F{ACCENT}│`f   3. confirmation + receipt arrive by LXMF
-`F{ACCENT}└─`f  4. track everything on `[my orders`:/page/orders.mu]
+`F{ACCENT}└─`f  4. track everything on `[my orders`:/page/orders.mu] `F{DIM}·`f `[my account`:/page/account.mu]
 
 `F{DIM}{_esc(shop.get('invoice_note', 'You will receive an LXMF invoice after ordering.'))}`f
 
@@ -182,7 +182,9 @@ def sync_images(catalog, images_dir, node_files_dir):
 
 def write_pages(catalog, dest_hex, out_dir):
     os.makedirs(os.path.join(out_dir, "item"), exist_ok=True)
-    with open(os.path.join(out_dir, "index.mu"), "w", encoding="utf-8") as fh:
+    # index = exec wrapper (greets identified buyers) over the static body
+    # (what crawlers and anonymous visitors see — MeshData block included)
+    with open(os.path.join(out_dir, "index_body.mu"), "w", encoding="utf-8") as fh:
         fh.write(index_page(catalog, dest_hex))
     written = 1
     for sku, item in catalog.items.items():
@@ -194,7 +196,7 @@ def write_pages(catalog, dest_hex, out_dir):
     # the NomadNet node runs them per-request (that's how BUY NOW works)
     src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "pages_exec")
-    for name in ("buy.mu", "orders.mu"):
+    for name in ("buy.mu", "orders.mu", "account.mu", "index.mu"):
         src = os.path.join(src_dir, name)
         if os.path.isfile(src):
             dst = os.path.join(out_dir, name)

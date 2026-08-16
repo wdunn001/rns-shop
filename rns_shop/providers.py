@@ -188,3 +188,15 @@ class Rails:
                 if ins:
                     return ins
         return InvoiceProvider({}, {"shop": {}, "store": None}).instruction(order)
+
+    def instructions_all(self, order, preferred=None):
+        """Every enabled rail's instruction for this order — buyers pay however
+        they like; the rail that settles is the one that counts. Preferred
+        method (from the buyer's profile) sorts first."""
+        out = []
+        for m, p in self.providers.items():
+            ins = p.instruction(order)
+            if ins:
+                out.append(ins.as_dict() | {"label": p.label})
+        out.sort(key=lambda i: 0 if i["method"] == preferred else 1)
+        return out

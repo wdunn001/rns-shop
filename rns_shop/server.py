@@ -211,13 +211,18 @@ def _submit_order(identity_hex, items, shipping=None, note="", lxmf=None,
                               _catalog.shop.get("currency", "USD"),
                               addr, note, lxmf=lxmf)
     order = {"order_id": oid, "total": total, "items": items}
-    ins = _rails.instruction(order, method)
-    _store.order_set_payment(oid, ins.method, ins.text)
-    RNS.log(f"[rns-shop] ORDER {oid} from {identity_hex[:8]}… total {total} "
-            f"via {ins.method}", RNS.LOG_NOTICE)
+    preferred = method or _store.profile_get(identity_hex).get("pay_method")
+    options = _rails.instructions_all(order, preferred=preferred)
+    # persist the full option list for LXMF + later HOW-TO-PAY displays
+    joined = "\n".join(f"[{o['label']}] {o['text']}" for o in options)
+    _store.order_set_payment(oid, options[0]["method"] if options else "invoice",
+                             joined)
+    RNS.log(f"[rns-shop] ORDER {oid} from {identity_hex[:8]}… total {total}",
+            RNS.LOG_NOTICE)
     return {"ok": True, "order_id": oid, "total": total,
             "currency": _catalog.shop.get("currency", "USD"),
-            "payment": ins.as_dict(),
+            "payment": options[0] if options else None,
+            "payments": options,
             "payment_options": [m["method"] for m in _rails.methods()]}
 
 
