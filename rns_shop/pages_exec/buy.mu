@@ -79,6 +79,10 @@ except Exception:
 
 ADDR = ("name", "street", "street2", "city", "region", "postal", "country")
 addr = {k: (E(f"field_{k}") or "").strip() for k in ADDR}
+# 'name' is a reserved word in some clients' field handling (silently dropped)
+# -> the page field is 'fullname'; map it back to the canonical key.
+if not addr["name"]:
+    addr["name"] = (E("field_fullname") or "").strip()
 method = (E("field_method") or "").strip()
 # step 2 iff the form was submitted. Detection is belt-and-braces: a `step`
 # text field (prefilled "2") plus the method radio — some clients don't send
@@ -141,7 +145,7 @@ if not confirmed:
     if physical:
         ships = ", ".join(item.get("ships_to", ["worldwide"])).lower()
         print(f"""`F{A}┌─`f `!SHIPPING`!  `F{D}(ships to: {esc(ships)})`f
-`F{A}│`f  name     `B{BG}`<24|name`{esc(addr['name'])}>`b
+`F{A}│`f  name     `B{BG}`<24|fullname`{esc(addr['name'])}>`b
 `F{A}│`f  street   `B{BG}`<32|street`{esc(addr['street'])}>`b
 `F{A}│`f  street 2 `B{BG}`<32|street2`{esc(addr['street2'])}>`b
 `F{A}│`f  city     `B{BG}`<20|city`{esc(addr['city'])}>`b   region `B{BG}`<12|region`{esc(addr['region'])}>`b
@@ -159,7 +163,7 @@ if not confirmed:
 `F{A}└─`f""")
     link_fields = ["qty", "method", "note", "save", "step"]
     if physical:
-        link_fields += list(ADDR)
+        link_fields += ["fullname"] + [k for k in ADDR if k != "name"]
     fields = "|".join(link_fields)
     print(f"""`c
 `!`[▶ CONFIRM ORDER`:/page/buy/{sku}.mu`{fields}]`!
