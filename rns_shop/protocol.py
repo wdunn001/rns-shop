@@ -1,8 +1,8 @@
-"""rns-stall wire protocol: envelope, op names, pack/unpack helpers."""
+"""rns-shop wire protocol: envelope, op names, pack/unpack helpers."""
 import umsgpack
 
 VERSION = 1
-APP_NAME = "rnstall"
+APP_NAME = "rnshop"
 ASPECTS = ("shop",)
 PATH = "/shop"
 MANIFEST_OP = "__manifest__"

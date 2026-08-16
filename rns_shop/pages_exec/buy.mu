@@ -14,7 +14,7 @@ import os
 import urllib.request
 
 A, G, W, D, BG = "5cf", "6d8", "ec7", "89a", "124"
-API = os.environ.get("STALL_LOCAL_API_URL", "http://127.0.0.1:8219")
+API = os.environ.get("SHOP_LOCAL_API_URL", "http://127.0.0.1:8219")
 
 E = os.environ.get
 identity = E("remote_identity", "")

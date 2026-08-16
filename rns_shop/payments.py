@@ -9,7 +9,7 @@ The webhook bridge (webhook_bridge.py) flips orders to paid when the processor
 calls back; the LXMF worker then entitles/receipts.
 
 Rail B (Monero, watch-only): per-order subaddress from monero-wallet-rpc;
-watcher polls for confirmed transfers. Dormant unless STALL_XMR_RPC is set.
+watcher polls for confirmed transfers. Dormant unless SHOP_XMR_RPC is set.
 No spend keys are ever involved.
 """
 import json
@@ -62,14 +62,14 @@ class XmrWatcher:
 
     def start(self):
         threading.Thread(target=self._loop, daemon=True).start()
-        RNS.log(f"[rns-stall] XMR watcher polling {self.rpc}")
+        RNS.log(f"[rns-shop] XMR watcher polling {self.rpc}")
 
     def _loop(self):
         while True:
             try:
                 self._tick()
             except Exception as e:
-                RNS.log(f"[rns-stall] xmr watcher error: {e}", RNS.LOG_DEBUG)
+                RNS.log(f"[rns-shop] xmr watcher error: {e}", RNS.LOG_DEBUG)
             time.sleep(self.poll)
 
     def _tick(self):
@@ -86,5 +86,5 @@ class XmrWatcher:
             got = confirmed.get(o["xmr_index"], 0) / 1e12
             if got + 1e-12 >= o["xmr_amount"]:
                 self.store.order_set_status(o["order_id"], "paid")
-                RNS.log(f"[rns-stall] XMR paid: order {o['order_id']} "
+                RNS.log(f"[rns-shop] XMR paid: order {o['order_id']} "
                         f"({got} XMR)", RNS.LOG_NOTICE)

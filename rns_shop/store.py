@@ -1,5 +1,5 @@
 """Identity-keyed state: carts, orders, entitlements. SQLite so a merchant can
-run a stall from one file; NomadNet/RNS gives us the customer key (the remote
+run a shop from one file; NomadNet/RNS gives us the customer key (the remote
 identity hash) for free -- there are no accounts, sessions, or passwords."""
 import json
 import os

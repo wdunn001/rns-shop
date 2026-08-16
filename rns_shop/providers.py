@@ -162,7 +162,7 @@ class Rails:
         for cfg in configured:
             cls = BUILTINS.get(cfg.get("method"))
             if cls is None:
-                RNS.log(f"[rns-stall] unknown payment method "
+                RNS.log(f"[rns-shop] unknown payment method "
                         f"{cfg.get('method')!r} — skipped", RNS.LOG_WARNING)
                 continue
             p = cls(cfg, ctx)

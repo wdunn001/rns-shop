@@ -1,4 +1,4 @@
-"""stalld: the rns-stall service daemon.
+"""shopd: the rns-shop service daemon.
 
 Follows the proven rns-geo/rns-time template: standalone RNS instance riding a
 local hub, request-handler destination, per-link token-bucket rate limiting,
@@ -181,7 +181,7 @@ def _dispatch(req, identity_hex):
             return protocol.err("no_file", req)
         with open(fp, "rb") as fh:
             data = fh.read()
-        RNS.log(f"[rns-stall] DELIVERY {sku} -> {identity_hex[:8]}… "
+        RNS.log(f"[rns-shop] DELIVERY {sku} -> {identity_hex[:8]}… "
                 f"({len(data)} bytes)", RNS.LOG_NOTICE)
         return protocol.ok({"filename": os.path.basename(fp), "data": data}, req)
     if op in (protocol.OP_PAY_LINK, protocol.OP_PAY_XMR):
@@ -213,7 +213,7 @@ def _submit_order(identity_hex, items, shipping=None, note="", lxmf=None,
     order = {"order_id": oid, "total": total, "items": items}
     ins = _rails.instruction(order, method)
     _store.order_set_payment(oid, ins.method, ins.text)
-    RNS.log(f"[rns-stall] ORDER {oid} from {identity_hex[:8]}… total {total} "
+    RNS.log(f"[rns-shop] ORDER {oid} from {identity_hex[:8]}… total {total} "
             f"via {ins.method}", RNS.LOG_NOTICE)
     return {"ok": True, "order_id": oid, "total": total,
             "currency": _catalog.shop.get("currency", "USD"),
@@ -274,7 +274,7 @@ class _LocalApiHandler(BaseHTTPRequestHandler):
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
         if u.path == "/shop_info":  # no identity needed: public shop metadata
             return self._json(200, {
-                "ok": True, "name": _catalog.shop.get("name", "stall"),
+                "ok": True, "name": _catalog.shop.get("name", "shop"),
                 "currency": _catalog.shop.get("currency", "USD"),
                 "methods": _rails.methods()})
         if u.path == "/item":
@@ -327,7 +327,7 @@ class _LocalApiHandler(BaseHTTPRequestHandler):
 def _start_local_api(port):
     srv = ThreadingHTTPServer(("127.0.0.1", port), _LocalApiHandler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    RNS.log(f"[rns-stall] local checkout API on 127.0.0.1:{port} "
+    RNS.log(f"[rns-shop] local checkout API on 127.0.0.1:{port} "
             f"(for the node's buy/orders pages)")
 
 
@@ -355,7 +355,7 @@ def on_request(path, data, request_id, link_id, remote_identity, requested_at):
     try:
         return protocol.pack(_dispatch(req, identity_hex))
     except Exception as e:
-        RNS.log(f"[rns-stall] dispatch error: {e}", RNS.LOG_ERROR)
+        RNS.log(f"[rns-shop] dispatch error: {e}", RNS.LOG_ERROR)
         return protocol.pack(protocol.err("internal", req))
 
 
@@ -365,12 +365,12 @@ def _health_loop(dest):
             if _catalog.changed():
                 _catalog.load()
                 n = render.write_pages(_catalog, _state["dest"], _pages_out)
-                RNS.log(f"[rns-stall] catalog changed — re-rendered {n} pages")
+                RNS.log(f"[rns-shop] catalog changed — re-rendered {n} pages")
             _state["ok"] = bool(_catalog.items)
             _state["items"] = len(_catalog.items)
         except Exception as e:
             _state["ok"] = False
-            RNS.log(f"[rns-stall] health/catalog error: {e}", RNS.LOG_ERROR)
+            RNS.log(f"[rns-shop] health/catalog error: {e}", RNS.LOG_ERROR)
         time.sleep(HEALTH_INTERVAL)
 
 
@@ -393,13 +393,13 @@ class _HealthHandler(BaseHTTPRequestHandler):
 def main():
     global _catalog, _store, _manifest, _pages_out, _files_dir, _xmr
     ap = argparse.ArgumentParser()
-    ap.add_argument("--identity", default=os.environ.get("STALL_IDENTITY",
-                    os.path.expanduser("~/.rns_stall/identity")))
+    ap.add_argument("--identity", default=os.environ.get("SHOP_IDENTITY",
+                    os.path.expanduser("~/.rns_shop/identity")))
     ap.add_argument("--config", default=os.environ.get("RNS_CONFIG"))
-    ap.add_argument("--catalog", default=os.environ.get("STALL_CATALOG", "catalog.yaml"))
-    ap.add_argument("--db", default=os.environ.get("STALL_DB", "stall.db"))
-    ap.add_argument("--pages-out", default=os.environ.get("STALL_PAGES_OUT", "pages"))
-    ap.add_argument("--files", default=os.environ.get("STALL_FILES", "files"))
+    ap.add_argument("--catalog", default=os.environ.get("SHOP_CATALOG", "catalog.yaml"))
+    ap.add_argument("--db", default=os.environ.get("SHOP_DB", "shop.db"))
+    ap.add_argument("--pages-out", default=os.environ.get("SHOP_PAGES_OUT", "pages"))
+    ap.add_argument("--files", default=os.environ.get("SHOP_FILES", "files"))
     ap.add_argument("--healthz-port", type=int,
                     default=int(os.environ.get("HEALTHZ_PORT", "8216")))
     args = ap.parse_args()
@@ -430,15 +430,15 @@ def main():
 
     dest_hex = RNS.hexrep(dest.hash, delimit=False)
     _state["dest"] = dest_hex
-    _manifest = manifest.build(dest_hex, _catalog.shop.get("name", "stall"))
+    _manifest = manifest.build(dest_hex, _catalog.shop.get("name", "shop"))
 
     n = render.write_pages(_catalog, dest_hex, _pages_out)
-    ni = render.sync_images(_catalog, os.environ.get("STALL_IMAGES"),
-                            os.environ.get("STALL_NODE_FILES"))
-    RNS.log(f"[rns-stall] rendered {n} storefront pages -> {_pages_out} "
+    ni = render.sync_images(_catalog, os.environ.get("SHOP_IMAGES"),
+                            os.environ.get("SHOP_NODE_FILES"))
+    RNS.log(f"[rns-shop] rendered {n} storefront pages -> {_pages_out} "
             f"(+{ni} product images)")
-    RNS.log(f"[rns-stall] serving as {RNS.prettyhexrep(dest.hash)}")
-    print(f"rns-stall destination: {dest_hex}", flush=True)
+    RNS.log(f"[rns-shop] serving as {RNS.prettyhexrep(dest.hash)}")
+    print(f"rns-shop destination: {dest_hex}", flush=True)
 
     _state["ok"] = bool(_catalog.items)
     _state["items"] = len(_catalog.items)
@@ -446,31 +446,31 @@ def main():
     # LXMF worker: confirmations, receipts, digital entitlement (M2)
     from .lxmf_worker import Worker
     Worker(_store, _catalog, os.path.dirname(os.path.abspath(args.identity)),
-           _catalog.shop.get("name", "stall")).start()
+           _catalog.shop.get("name", "shop")).start()
 
     # payment rails: generic provider registry (invoice/link/xmr/…)
     global _rails
-    xmr_rpc = os.environ.get("STALL_XMR_RPC")
+    xmr_rpc = os.environ.get("SHOP_XMR_RPC")
     if xmr_rpc:
         _xmr = payments.XmrWatcher(_store, xmr_rpc)
     _rails = providers.Rails(_catalog.shop, _store, xmr_watcher=_xmr)
     _rails.start()
-    RNS.log(f"[rns-stall] payment rails: "
+    RNS.log(f"[rns-shop] payment rails: "
             f"{[m['method'] for m in _rails.methods()]}")
 
-    _start_local_api(int(os.environ.get("STALL_LOCAL_API", "8219")))
+    _start_local_api(int(os.environ.get("SHOP_LOCAL_API", "8219")))
 
     threading.Thread(target=_health_loop, args=(dest,), daemon=True).start()
     srv = ThreadingHTTPServer(("0.0.0.0", args.healthz_port), _HealthHandler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    RNS.log(f"[rns-stall] healthz on :{args.healthz_port}")
+    RNS.log(f"[rns-shop] healthz on :{args.healthz_port}")
 
     while True:
         if _state["ok"]:
             dest.announce()
-            RNS.log(f"[rns-stall] announced ({_state['items']} items)")
+            RNS.log(f"[rns-shop] announced ({_state['items']} items)")
         else:
-            RNS.log("[rns-stall] NOT announcing — catalog empty/unhealthy",
+            RNS.log("[rns-shop] NOT announcing — catalog empty/unhealthy",
                     RNS.LOG_WARNING)
         time.sleep(ANNOUNCE_INTERVAL)
 

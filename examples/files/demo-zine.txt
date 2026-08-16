@@ -1,6 +1,6 @@
 OFF-GRID FIELD ZINE — demo edition
 ==================================
-Congratulations: this file reached you over Reticulum, delivered by rns-stall's
+Congratulations: this file reached you over Reticulum, delivered by rns-shop's
 delivery.get op — entitlement-checked against your cryptographic identity,
 streamed over an encrypted Link. No web, no accounts, no cloud.
 

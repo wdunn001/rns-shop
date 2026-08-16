@@ -1,7 +1,7 @@
 # +type: wiki
-# +title: rns-stall — getting started
-# +description: Stand up your own stall on the mesh in an afternoon.
-# +tags: rns-stall, guide
+# +title: rns-shop — getting started
+# +description: Stand up your own shop on the mesh in an afternoon.
+# +tags: rns-shop, guide
 
 >Getting started
 
@@ -11,7 +11,7 @@ One YAML file is the whole shop:
 
 `=
 shop:
-  name: My Stall
+  name: My Shop
   currency: USD
   invoice_note: "LXMF invoice follows; pay by arrangement."
 items:
@@ -22,10 +22,10 @@ items:
     kind: physical            # physical|digital|service
 `=
 
->>2. Run stalld
+>>2. Run shopd
 
 `=
-python3 -m rns_stall.server --catalog catalog.yaml --pages-out pages
+python3 -m rns_shop.server --catalog catalog.yaml --pages-out pages
 `=
 
 It prints your destination hash (your shop's address — PUBLISH it, and BACK UP
@@ -42,7 +42,7 @@ MeshData `!product`! blocks.
 
 >>4. Take orders
 
-Watch stalld's log (each order logs an ORDER line), or poll the db. v1 rail is
+Watch shopd's log (each order logs an ORDER line), or poll the db. v1 rail is
 invoice: you contact the buyer (their identity hash is on the order) via LXMF.
 Grant digital goods with an entitlement row; buyers verify with
 `!entitlement.check`!.
@@ -52,7 +52,7 @@ Grant digital goods with an entitlement row; buyers verify with
 Discover live docs from the service itself:
 
 `=
-python3 -m rns_stall.client <dest> manifest
+python3 -m rns_shop.client <dest> manifest
 `=
 
 `[back`:/page/index.mu]

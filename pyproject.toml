@@ -1,5 +1,5 @@
 [project]
-name = "rns-stall"
+name = "rns-shop"
 version = "0.1.0"
 description = "Self-hosted e-commerce over Reticulum/NomadNet: micron storefront + MeshAPI shop service, MeshData-native, Beacon-discoverable"
 readme = "README.md"
@@ -8,4 +8,4 @@ dependencies = ["rns>=0.7", "umsgpack", "pyyaml"]
 # meshapi + meshdata: install from their repos (not yet on PyPI)
 
 [tool.setuptools]
-packages = ["rns_stall"]
+packages = ["rns_shop"]

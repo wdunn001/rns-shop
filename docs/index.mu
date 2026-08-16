@@ -1,9 +1,9 @@
 # +type: wiki
-# +title: rns-stall — commerce over the mesh
+# +title: rns-shop — commerce over the mesh
 # +description: Self-hosted e-commerce for Reticulum/NomadNet: catalog, carts, orders, entitlements. MeshData-native, Beacon-discoverable.
-# +tags: rns-stall, commerce, meshapi, meshdata
+# +tags: rns-shop, commerce, meshapi, meshdata
 
->rns-stall
+>rns-shop
 
 Self-hosted commerce over Reticulum. Point it at a catalog file, get:
 
@@ -17,7 +17,7 @@ unless you're shipping something physical.
 
 >>How buying works
 
-`F6d8┌─`f  1. Browse the catalog (this node, or any stall Beacon found you)
+`F6d8┌─`f  1. Browse the catalog (this node, or any shop Beacon found you)
 `F6d8│`f   2. Set a quantity and hit `!BUY NOW`! — right on the item page
 `F6d8│`f   3. Your RNS identity IS your account (no signup, no password)
 `F6d8│`f   4. Confirmation + receipt arrive by LXMF
@@ -31,17 +31,17 @@ Payment: invoice by LXMF (default), plus Stripe-link handoff and Monero
 The shop is also a MeshAPI service — everything the buttons do, scriptable:
 
 `=
-python3 -m rns_stall.client <dest> catalog.list
-python3 -m rns_stall.client <dest> order.submit --item DEMO-ZINE:1
-python3 -m rns_stall.client <dest> delivery.get --sku DEMO-ZINE
+python3 -m rns_shop.client <dest> catalog.list
+python3 -m rns_shop.client <dest> order.submit --item DEMO-ZINE:1
+python3 -m rns_shop.client <dest> delivery.get --sku DEMO-ZINE
 `=
 
->>Run your own stall
+>>Run your own shop
 
 `=
-git clone https://github.com/wdunn001/rns-stall.git
-cd rns-stall && cp examples/catalog.yaml catalog.yaml   # edit it
-python3 -m rns_stall.server --catalog catalog.yaml
+git clone https://github.com/wdunn001/rns-shop.git
+cd rns-shop && cp examples/catalog.yaml catalog.yaml   # edit it
+python3 -m rns_shop.server --catalog catalog.yaml
 `=
 
 Serve the generated pages/ dir from a NomadNet node (its own node — announced,
@@ -51,6 +51,6 @@ discoverable). Full guide: `[getting started`:/page/getting-started.mu]
 
 - `!MeshAPI`! — service discovery + docs (`!__manifest__`! op)
 - `!MeshData`! — the `!product`! record type (schema.org Product/Offer mapped)
-- `!Beacon`! — the mesh search engine that surfaces every stall's listings
+- `!Beacon`! — the mesh search engine that surfaces every shop's listings
 
-source: https://github.com/wdunn001/rns-stall
+source: https://github.com/wdunn001/rns-shop

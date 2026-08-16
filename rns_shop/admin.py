@@ -1,9 +1,9 @@
-"""stallctl: merchant admin CLI (direct DB, run next to stalld / via docker exec).
+"""stallctl: merchant admin CLI (direct DB, run next to shopd / via docker exec).
 
-    python3 -m rns_stall.admin --db /data/stall.db list
-    python3 -m rns_stall.admin --db /data/stall.db show <order_id>
-    python3 -m rns_stall.admin --db /data/stall.db mark-paid <order_id>
-    python3 -m rns_stall.admin --db /data/stall.db entitle <identity> <sku>
+    python3 -m rns_shop.admin --db /data/shop.db list
+    python3 -m rns_shop.admin --db /data/shop.db show <order_id>
+    python3 -m rns_shop.admin --db /data/shop.db mark-paid <order_id>
+    python3 -m rns_shop.admin --db /data/shop.db entitle <identity> <sku>
 
 mark-paid is the invoice rail's settlement step: the LXMF worker picks up the
 paid order, entitles digital SKUs, and sends the receipt automatically."""

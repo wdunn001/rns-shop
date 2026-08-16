@@ -1,6 +1,6 @@
 """In-process LXMF worker: order confirmations, receipts, digital fulfillment.
 
-Runs as a thread inside stalld (which already owns an RNS instance), using its
+Runs as a thread inside shopd (which already owns an RNS instance), using its
 own LXMF delivery identity. Buyers opt in by including their LXMF delivery
 destination hash with the order (the CLI does this automatically and announces
 the buyer's delivery destination so we can resolve it).
@@ -36,7 +36,7 @@ class Worker:
 
     def start(self):
         if not HAVE_LXMF:
-            RNS.log("[rns-stall] LXMF not installed — confirmations disabled",
+            RNS.log("[rns-shop] LXMF not installed — confirmations disabled",
                     RNS.LOG_WARNING)
             return False
         idpath = os.path.join(self._state_dir, "lxmf_identity")
@@ -48,9 +48,9 @@ class Worker:
         self.router = LXMF.LXMRouter(identity=identity,
                                      storagepath=os.path.join(self._state_dir, "lxmf"))
         self.source = self.router.register_delivery_identity(
-            identity, display_name=f"{self.shop_name} (rns-stall)")
+            identity, display_name=f"{self.shop_name} (rns-shop)")
         self.router.announce(self.source.hash)
-        RNS.log(f"[rns-stall] LXMF worker up as "
+        RNS.log(f"[rns-shop] LXMF worker up as "
                 f"{RNS.hexrep(self.source.hash, delimit=False)}")
         threading.Thread(target=self._loop, daemon=True).start()
         return True
@@ -65,7 +65,7 @@ class Worker:
                     time.sleep(0.5)
             identity = RNS.Identity.recall(dh)
             if identity is None:
-                RNS.log(f"[rns-stall] LXMF dest {dest_hash_hex[:8]}… unknown "
+                RNS.log(f"[rns-shop] LXMF dest {dest_hash_hex[:8]}… unknown "
                         f"(no announce seen yet) — will retry", RNS.LOG_DEBUG)
                 return False
             dest = RNS.Destination(identity, RNS.Destination.OUT,
@@ -76,7 +76,7 @@ class Worker:
             self.router.handle_outbound(msg)
             return True
         except Exception as e:
-            RNS.log(f"[rns-stall] LXMF send failed: {e}", RNS.LOG_DEBUG)
+            RNS.log(f"[rns-shop] LXMF send failed: {e}", RNS.LOG_DEBUG)
             return False
 
     def _items_line(self, order):
@@ -91,7 +91,7 @@ class Worker:
             try:
                 self._tick()
             except Exception as e:
-                RNS.log(f"[rns-stall] worker error: {e}", RNS.LOG_ERROR)
+                RNS.log(f"[rns-shop] worker error: {e}", RNS.LOG_ERROR)
             time.sleep(POLL)
 
     def _tick(self):
@@ -107,7 +107,7 @@ class Worker:
                     f"HOW TO PAY: {pay_line}")
             if self._send(o["lxmf"], f"{self.shop_name}: order {o['order_id']}", body):
                 self.store.mark_notified(o["order_id"])
-                RNS.log(f"[rns-stall] confirmation sent for {o['order_id']}")
+                RNS.log(f"[rns-shop] confirmation sent for {o['order_id']}")
         for o in self.store.orders_unreceipted():
             digital, physical = [], []
             for e in o["items"]:
@@ -129,5 +129,5 @@ class Worker:
             if sent_ok:
                 self.store.mark_receipted(o["order_id"],
                                           "fulfilled" if done else "paid")
-                RNS.log(f"[rns-stall] receipt processed for {o['order_id']} "
+                RNS.log(f"[rns-shop] receipt processed for {o['order_id']} "
                         f"(digital entitled: {digital})")

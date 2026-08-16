@@ -1,14 +1,14 @@
 """Webhook bridge: the clearnet edge posts here when a payment lands; we flip
-the order to paid. The LXMF worker (in stalld, same DB) handles entitlement +
+the order to paid. The LXMF worker (in shopd, same DB) handles entitlement +
 receipt from there.
 
-    python3 -m rns_stall.webhook_bridge --db /data/stall.db --port 8218 \
+    python3 -m rns_shop.webhook_bridge --db /data/shop.db --port 8218 \
         --secret-file /data/webhook_secret
 
-POST /paid  {"order_id": "..."}  with header  X-Stall-Secret: <secret>
+POST /paid  {"order_id": "..."}  with header  X-Shop-Secret: <secret>
   -> production path: your Stripe/PayPal webhook adapter calls this.
 
-DEMO MODE (STALL_DEMO=1): the bridge also SERVES a fake processor —
+DEMO MODE (SHOP_DEMO=1): the bridge also SERVES a fake processor —
 GET  /demo/<order_id>       a card-checkout page a buyer opens in any browser
 POST /demo/<order_id>/pay   "payment succeeded" -> order flips paid (no secret;
                             demo only — never enable on a real shop)
@@ -56,7 +56,7 @@ def main():
         print(f"generated webhook secret at {args.secret_file}")
     secret = open(args.secret_file).read().strip()
     store = Store(args.db)
-    demo = os.environ.get("STALL_DEMO") == "1"
+    demo = os.environ.get("SHOP_DEMO") == "1"
 
     def _order(oid):
         return store.order_admin_get(oid) if re.fullmatch(r"[0-9a-f]{8}", oid or "") else None
@@ -104,7 +104,7 @@ your LXMF receipt is on its way, digital goods are unlocked on
 <b>my orders</b>. You can close this tab.</p>""")
             if self.path != "/paid":
                 self.send_response(404); self.end_headers(); return
-            if self.headers.get("X-Stall-Secret") != secret:
+            if self.headers.get("X-Shop-Secret") != secret:
                 self.send_response(403); self.end_headers(); return
             try:
                 body = json.loads(self.rfile.read(

@@ -1,4 +1,4 @@
-"""The rns-stall MeshAPI manifest (adopter #3, after rns-geo and rns-time)."""
+"""The rns-shop MeshAPI manifest (adopter #3, after rns-geo and rns-time)."""
 from meshapi import schema
 
 from . import protocol
@@ -7,7 +7,7 @@ from . import protocol
 def build(dest_hex, shop_name):
     return schema.build_manifest(
         service={
-            "name": f"rns-stall — {shop_name}",
+            "name": f"rns-shop — {shop_name}",
             "summary": "Self-hosted commerce over Reticulum: catalog, carts, "
                        "orders, entitlements. Buyer identity = RNS identity.",
             "app": protocol.APP_NAME,
@@ -15,7 +15,7 @@ def build(dest_hex, shop_name):
             "path": protocol.PATH,
             "dest": dest_hex,
             "encoding": "umsgpack",
-            "source": "https://github.com/wdunn001/rns-stall",
+            "source": "https://github.com/wdunn001/rns-shop",
         },
         ops=[
             {"op": protocol.OP_CATALOG_LIST, "summary": "List items (optionally by tag)",

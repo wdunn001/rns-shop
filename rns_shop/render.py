@@ -56,7 +56,7 @@ def _meshdata_block(item, shop, dest_hex):
         f"# +currency: {shop.get('currency', 'USD')}",
         f"# +availability: {item['availability']}",
         f"# +sku: {item['sku']}",
-        f"# +vendor: {_esc(shop.get('vendor', shop.get('name', 'stall')))}",
+        f"# +vendor: {_esc(shop.get('vendor', shop.get('name', 'shop')))}",
         f"# +shop: {dest_hex}",
     ]
     if item.get("tags"):
@@ -65,7 +65,7 @@ def _meshdata_block(item, shop, dest_hex):
 
 
 def _banner(shop):
-    name = _esc(shop.get("name", "stall")).upper()
+    name = _esc(shop.get("name", "shop")).upper()
     tagline = _esc(shop.get("tagline",
                             "a shop on the mesh — no accounts, no passwords"))
     bar = "▔" * (len(name) + 8)
@@ -133,8 +133,8 @@ def index_page(catalog, dest_hex):
     if not cards:
         cards = f"`F{DIM}(no items yet)`f"
     return f"""# +type: index
-# +title: {_esc(shop.get('name', 'stall'))}
-# +description: {_esc(shop.get('name', 'stall'))} — a self-hosted shop on the Reticulum mesh (rns-stall). Buyer identity = RNS identity.
+# +title: {_esc(shop.get('name', 'shop'))}
+# +description: {_esc(shop.get('name', 'shop'))} — a self-hosted shop on the Reticulum mesh (rns-shop). Buyer identity = RNS identity.
 
 {_banner(shop)}
 
@@ -150,13 +150,13 @@ def index_page(catalog, dest_hex):
 
 `F{DIM}{_esc(shop.get('invoice_note', 'You will receive an LXMF invoice after ordering.'))}`f
 
-`F{DIM}Building something? The shop is also a MeshAPI service — app rnstall,
+`F{DIM}Building something? The shop is also a MeshAPI service — app rnshop,
 aspect shop (answers ops, not pages):`f
 `c`B{BAND_BG}`F{ACCENT}  {dest_hex}  `f`b
 `a
 
 -
-`c`F{DIM}powered by`f `F{ACCENT}rns-stall`f `F{DIM}— run your own: https://github.com/wdunn001/rns-stall`f
+`c`F{DIM}powered by`f `F{ACCENT}rns-shop`f `F{DIM}— run your own: https://github.com/wdunn001/rns-shop`f
 `a"""
 
 

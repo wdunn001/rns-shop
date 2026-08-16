@@ -1,11 +1,11 @@
 """Medusa v2 catalog connector (M5): read products from a MedusaJS /store API
-and present them through the same interface as the YAML Catalog, so stalld can
+and present them through the same interface as the YAML Catalog, so shopd can
 run against a real commerce backend without a separate export step.
 
-Usage: STALL_CATALOG=medusa://<base_url>?key=<publishable_key>[&currency=usd]
-(the shop{} block then comes from STALL_SHOP_* env or defaults).
+Usage: SHOP_CATALOG=medusa://<base_url>?key=<publishable_key>[&currency=usd]
+(the shop{} block then comes from SHOP_SHOP_* env or defaults).
 
-Read-only: stalld never writes to Medusa; orders live in stalld's DB (pushing
+Read-only: shopd never writes to Medusa; orders live in shopd's DB (pushing
 them into Medusa/ERPNext is the merchant-side sync, a later connector)."""
 import json
 import time
@@ -22,7 +22,7 @@ class MedusaCatalog:
         self.base = f"http://{u.netloc}"
         self.key = (q.get("key") or [None])[0]
         self.currency = (q.get("currency") or ["usd"])[0]
-        self.shop = shop or {"name": "stall (medusa)", "currency":
+        self.shop = shop or {"name": "shop (medusa)", "currency":
                              self.currency.upper()}
         self.items = {}
         self._loaded = 0.0

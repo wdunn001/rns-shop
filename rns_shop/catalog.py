@@ -3,8 +3,8 @@ function so Medusa/other connectors can slot in later (M5).
 
 catalog.yaml shape:
   shop:
-    name: My Stall
-    vendor: My Stall
+    name: My Shop
+    vendor: My Shop
     currency: USD
     invoice_note: "We'll send an LXMF invoice; pay by arrangement."
   items:
