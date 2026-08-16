@@ -117,7 +117,7 @@ def item_page(item, shop, dest_hex):
 
 `F{GOOD}┌─`f `!BUY IT`!
 `F{GOOD}│`f
-`F{GOOD}│`f  quantity `B{BAND_BG}`<3|qty`1>`b   `F{GOOD}`![⚡ BUY NOW]`!`f `[order this now`:/page/buy/{item['sku']}.mu`qty]
+`F{GOOD}│`f  quantity `B{BAND_BG}`<3|qty`1>`b   `!`[⚡ BUY NOW`:/page/buy/{item['sku']}.mu`qty]`!
 `F{GOOD}│`f
 {digital_note}`F{GOOD}│`f  `F{DIM}one click — your RNS identity is the account. Confirmation + receipt by LXMF.`f
 `F{GOOD}└─`f `F{DIM}new here?`f `[how buying works`:/page/docs/index.mu]  ·  `[my orders`:/page/orders.mu]
