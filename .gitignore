@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+catalog.yaml
+stall.db
+pages/
+identity
+.rns_stall/
