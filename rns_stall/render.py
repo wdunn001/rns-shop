@@ -103,7 +103,7 @@ def item_page(item, shop, dest_hex):
 
 `F{GOOD}┌─`f `!BUY IT`!
 `F{GOOD}│`f
-`F{GOOD}│`f  quantity `B{BAND_BG}`<3|qty`1>`b   `F{GOOD}`![⚡ BUY NOW]`!`f `[order this now`:/page/buy.mu`sku={item['sku']}|qty]
+`F{GOOD}│`f  quantity `B{BAND_BG}`<3|qty`1>`b   `F{GOOD}`![⚡ BUY NOW]`!`f `[order this now`:/page/buy/{item['sku']}.mu`qty]
 `F{GOOD}│`f
 {digital_note}`F{GOOD}│`f  `F{DIM}one click — your RNS identity is the account. Confirmation + receipt by LXMF.`f
 `F{GOOD}└─`f `F{DIM}new here?`f `[how buying works`:/page/docs/index.mu]  ·  `[my orders`:/page/orders.mu]
@@ -168,4 +168,21 @@ def write_pages(catalog, dest_hex, out_dir):
                 d.write(s.read())
             os.chmod(dst, 0o755)
             written += 1
+    # per-item buy wrappers: /page/buy/<SKU>.mu bakes the SKU in, so BUY NOW
+    # links only submit the bare `qty` field — the one link-field form every
+    # micron client supports (literal name=value entries are not universal)
+    buy_dir = os.path.join(out_dir, "buy")
+    os.makedirs(buy_dir, exist_ok=True)
+    for sku in catalog.items:
+        wrapper = (
+            "#!/usr/bin/env python3\n"
+            "import os, runpy\n"
+            f"os.environ.setdefault('var_sku', {sku!r})\n"
+            "runpy.run_path(os.path.join(os.path.dirname(os.path.abspath(__file__)),\n"
+            "               '..', 'buy.mu'))\n")
+        p = os.path.join(buy_dir, f"{sku}.mu")
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write(wrapper)
+        os.chmod(p, 0o755)
+        written += 1
     return written
