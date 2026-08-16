@@ -1,4 +1,4 @@
-"""stallctl: merchant admin CLI (direct DB, run next to shopd / via docker exec).
+"""shopctl: merchant admin CLI (direct DB, run next to shopd / via docker exec).
 
     python3 -m rns_shop.admin --db /data/shop.db list
     python3 -m rns_shop.admin --db /data/shop.db show <order_id>
