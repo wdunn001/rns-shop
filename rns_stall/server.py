@@ -18,8 +18,11 @@ import RNS
 from meshapi import service as meshapi_service
 
 from . import catalog as catalog_mod
-from . import manifest, payments, protocol, render
+from . import manifest, payments, protocol, providers, render
 from .store import Store
+
+ADDRESS_FIELDS = ("name", "street", "street2", "city", "region", "postal",
+                  "country")
 
 ANNOUNCE_INTERVAL = 900
 HEALTH_INTERVAL = 60
@@ -35,6 +38,43 @@ _manifest = None
 _pages_out = None
 _files_dir = None
 _xmr = None
+_rails = None
+
+
+def _clean_address(raw):
+    """Structured shipping address from a dict (extra keys dropped, values
+    trimmed). Returns None if it isn't usable as an address at all."""
+    if isinstance(raw, str):  # legacy free-text
+        t = raw.strip()[:MAX_TEXT]
+        return {"text": t} if t else None
+    if not isinstance(raw, dict):
+        return None
+    out = {}
+    for k in ADDRESS_FIELDS:
+        v = str(raw.get(k, "") or "").strip()[:200]
+        if v:
+            out[k] = v
+    return out or None
+
+
+def _address_complete(addr):
+    return bool(addr) and all(addr.get(k) for k in
+                              ("name", "street", "city", "postal", "country"))
+
+
+def _order_checks(items, shipping):
+    """Shipping restrictions: physical items need a complete address in an
+    allowed country. Returns error code or None."""
+    physical = [_catalog.items[e["sku"]] for e in items
+                if _catalog.items[e["sku"]].get("kind", "physical") == "physical"]
+    if not physical:
+        return None
+    if not _address_complete(shipping):
+        return "address_required"
+    for it in physical:
+        if not catalog_mod.Catalog.ships_ok(it, shipping.get("country")):
+            return "not_shipped_to_country"
+    return None
 
 _buckets = {}
 _buckets_lock = threading.Lock()
@@ -100,11 +140,25 @@ def _dispatch(req, identity_hex):
         items = _items_valid(items)
         if items is None:
             return protocol.err("bad_items", req, "pass items or fill your cart")
-        result = _submit_order(identity_hex, items,
-                               str(req.get("shipping", ""))[:MAX_TEXT],
+        result = _submit_order(identity_hex, items, req.get("shipping"),
                                str(req.get("note", ""))[:MAX_TEXT],
-                               str(req.get("lxmf", ""))[:64] or None)
+                               str(req.get("lxmf", ""))[:64] or None,
+                               method=req.get("method"))
+        if not result.get("ok"):
+            return protocol.err(result.get("err", "order_failed"), req)
+        result.pop("ok", None)
         return protocol.ok(result, req)
+    if op == "profile.get":
+        return protocol.ok({"profile": _store.profile_get(identity_hex),
+                            "methods": _rails.methods()}, req)
+    if op == "profile.set":
+        addr = _clean_address(req.get("shipping"))
+        prof = _store.profile_set(
+            identity_hex,
+            shipping=json.dumps(addr) if addr else None,
+            billing=str(req.get("billing", ""))[:MAX_TEXT] or None,
+            pay_method=str(req.get("pay_method", ""))[:32] or None)
+        return protocol.ok({"profile": prof}, req)
     if op == protocol.OP_ORDER_STATUS:
         o = _store.order_get(identity_hex, str(req.get("order_id", "")))
         return protocol.ok({"order": o}, req) if o else protocol.err("not_found", req)
@@ -130,45 +184,41 @@ def _dispatch(req, identity_hex):
         RNS.log(f"[rns-stall] DELIVERY {sku} -> {identity_hex[:8]}… "
                 f"({len(data)} bytes)", RNS.LOG_NOTICE)
         return protocol.ok({"filename": os.path.basename(fp), "data": data}, req)
-    if op == protocol.OP_PAY_LINK:
+    if op in (protocol.OP_PAY_LINK, protocol.OP_PAY_XMR):
         o = _store.order_get(identity_hex, str(req.get("order_id", "")))
         if not o:
             return protocol.err("not_found", req)
-        url = payments.pay_link(_catalog.shop, o)
-        if not url:
+        method = "link" if op == protocol.OP_PAY_LINK else "xmr"
+        ins = _rails.instruction(o, method)
+        if ins.method != method:
             return protocol.err("not_configured", req,
-                                "no pay_link_template/pay_links in shop config")
-        return protocol.ok({"url": url}, req)
-    if op == protocol.OP_PAY_XMR:
-        if _xmr is None:
-            return protocol.err("not_configured", req, "XMR rail not enabled")
-        o = _store.order_get(identity_hex, str(req.get("order_id", "")))
-        if not o:
-            return protocol.err("not_found", req)
-        addr, idx = _xmr.assign_subaddress(o["order_id"])
-        rate = float(_catalog.shop.get("xmr_rate", 0)) or None
-        if rate is None:
-            return protocol.err("not_configured", req, "shop.xmr_rate unset")
-        amount = round(o["total"] / rate, 8)
-        _store.order_set_xmr(o["order_id"], addr, idx, amount)
-        return protocol.ok({"address": addr, "amount_xmr": amount}, req)
+                                f"{method} rail not enabled by this shop")
+        _store.order_set_payment(o["order_id"], ins.method, ins.text)
+        return protocol.ok({"payment": ins.as_dict()}, req)
     return protocol.err("bad_op", req)
 
 
-def _submit_order(identity_hex, items, shipping="", note="", lxmf=None):
-    """Shared order path: RNS op and the node's local checkout both land here."""
+def _submit_order(identity_hex, items, shipping=None, note="", lxmf=None,
+                  method=None):
+    """Shared order path: RNS op and the node's local checkout both land here.
+    Returns dict with err OR the order + its payment instruction."""
+    addr = _clean_address(shipping)
+    bad = _order_checks(items, addr)
+    if bad:
+        return {"ok": False, "err": bad}
     total = _total(items)
     oid = _store.order_create(identity_hex, items, total,
                               _catalog.shop.get("currency", "USD"),
-                              {"text": shipping} if shipping else None, note,
-                              lxmf=lxmf)
-    RNS.log(f"[rns-stall] ORDER {oid} from {identity_hex[:8]}… total {total}",
-            RNS.LOG_NOTICE)
-    return {"order_id": oid, "total": total,
+                              addr, note, lxmf=lxmf)
+    order = {"order_id": oid, "total": total, "items": items}
+    ins = _rails.instruction(order, method)
+    _store.order_set_payment(oid, ins.method, ins.text)
+    RNS.log(f"[rns-stall] ORDER {oid} from {identity_hex[:8]}… total {total} "
+            f"via {ins.method}", RNS.LOG_NOTICE)
+    return {"ok": True, "order_id": oid, "total": total,
             "currency": _catalog.shop.get("currency", "USD"),
-            "payment_options": ["invoice"],
-            "invoice_note": _catalog.shop.get(
-                "invoice_note", "You will receive an LXMF invoice.")}
+            "payment": ins.as_dict(),
+            "payment_options": [m["method"] for m in _rails.methods()]}
 
 
 # ---- local checkout API (loopback-only) -------------------------------------
@@ -185,32 +235,67 @@ class _LocalApiHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _body(self):
+        req = json.loads(self.rfile.read(
+            int(self.headers.get("Content-Length", 0))))
+        identity = str(req.get("identity", ""))
+        assert len(identity) == 32 and int(identity, 16) is not None
+        return req, identity
+
     def do_POST(self):
-        if self.path != "/order":
-            return self._json(404, {"ok": False, "err": "not_found"})
         try:
-            req = json.loads(self.rfile.read(
-                int(self.headers.get("Content-Length", 0))))
-            identity = str(req["identity"])
-            assert len(identity) == 32 and int(identity, 16) is not None
+            req, identity = self._body()
         except Exception:
             return self._json(400, {"ok": False, "err": "bad_request"})
-        items = _items_valid(req.get("items"))
-        if items is None:
-            return self._json(400, {"ok": False, "err": "bad_items"})
-        out = _submit_order(identity, items,
-                            str(req.get("shipping", ""))[:MAX_TEXT],
-                            str(req.get("note", ""))[:MAX_TEXT])
-        out["ok"] = True
-        return self._json(200, out)
+        if self.path == "/order":
+            items = _items_valid(req.get("items"))
+            if items is None:
+                return self._json(400, {"ok": False, "err": "bad_items"})
+            out = _submit_order(identity, items, req.get("shipping"),
+                                str(req.get("note", ""))[:MAX_TEXT],
+                                method=req.get("method"))
+            if out.get("ok") and req.get("save_profile"):
+                addr = _clean_address(req.get("shipping"))
+                _store.profile_set(identity,
+                                   shipping=json.dumps(addr) if addr else None,
+                                   pay_method=req.get("method"))
+            return self._json(200 if out.get("ok") else 400, out)
+        if self.path == "/profile":
+            addr = _clean_address(req.get("shipping"))
+            prof = _store.profile_set(
+                identity, shipping=json.dumps(addr) if addr else None,
+                pay_method=str(req.get("method", ""))[:32] or None)
+            return self._json(200, {"ok": True, "profile": prof})
+        return self._json(404, {"ok": False, "err": "not_found"})
 
     def do_GET(self):
         from urllib.parse import parse_qs, urlparse
         u = urlparse(self.path)
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
+        if u.path == "/shop_info":  # no identity needed: public shop metadata
+            return self._json(200, {
+                "ok": True, "name": _catalog.shop.get("name", "stall"),
+                "currency": _catalog.shop.get("currency", "USD"),
+                "methods": _rails.methods()})
+        if u.path == "/item":
+            it = _catalog.get(q.get("sku", ""))
+            if not it:
+                return self._json(404, {"ok": False, "err": "not_found"})
+            it["ok"] = True
+            return self._json(200, it)
         identity = q.get("identity", "")
         if len(identity) != 32:
             return self._json(400, {"ok": False, "err": "bad_identity"})
+        if u.path == "/profile":
+            prof = _store.profile_get(identity)
+            try:
+                prof["shipping"] = json.loads(prof.get("shipping") or "{}")
+            except Exception:
+                prof["shipping"] = {}
+            return self._json(200, {"ok": True, "profile": prof})
+        if u.path == "/payment":
+            pay = _store.order_payment(q.get("order_id", ""))
+            return self._json(200, {"ok": True, "payment": pay})
         if u.path == "/orders":
             return self._json(200, {"ok": True,
                                     "orders": _store.orders_for_identity(identity)})
@@ -348,7 +433,10 @@ def main():
     _manifest = manifest.build(dest_hex, _catalog.shop.get("name", "stall"))
 
     n = render.write_pages(_catalog, dest_hex, _pages_out)
-    RNS.log(f"[rns-stall] rendered {n} storefront pages -> {_pages_out}")
+    ni = render.sync_images(_catalog, os.environ.get("STALL_IMAGES"),
+                            os.environ.get("STALL_NODE_FILES"))
+    RNS.log(f"[rns-stall] rendered {n} storefront pages -> {_pages_out} "
+            f"(+{ni} product images)")
     RNS.log(f"[rns-stall] serving as {RNS.prettyhexrep(dest.hash)}")
     print(f"rns-stall destination: {dest_hex}", flush=True)
 
@@ -360,11 +448,15 @@ def main():
     Worker(_store, _catalog, os.path.dirname(os.path.abspath(args.identity)),
            _catalog.shop.get("name", "stall")).start()
 
-    # XMR watch-only rail (M4) — dormant unless configured
+    # payment rails: generic provider registry (invoice/link/xmr/…)
+    global _rails
     xmr_rpc = os.environ.get("STALL_XMR_RPC")
     if xmr_rpc:
         _xmr = payments.XmrWatcher(_store, xmr_rpc)
-        _xmr.start()
+    _rails = providers.Rails(_catalog.shop, _store, xmr_watcher=_xmr)
+    _rails.start()
+    RNS.log(f"[rns-stall] payment rails: "
+            f"{[m['method'] for m in _rails.methods()]}")
 
     _start_local_api(int(os.environ.get("STALL_LOCAL_API", "8219")))
 

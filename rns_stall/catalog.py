@@ -53,6 +53,10 @@ class Catalog:
             if it["kind"] not in KINDS:
                 raise ValueError(f"{sku}: bad kind {it['kind']!r}")
             it["tags"] = list(it.get("tags") or [])
+            # ships_to: item override else shop default else worldwide.
+            # Uppercase ISO-3166 alpha-2 codes, or ["worldwide"].
+            st = it.get("ships_to") or shop.get("ships_to") or ["worldwide"]
+            it["ships_to"] = [str(c).strip().upper() for c in st]
             items[sku] = it
         self.shop = shop
         self.items = items
@@ -82,4 +86,14 @@ class Catalog:
             return None
         full = dict(self.summary(it))
         full["description"] = it.get("description", "")
+        full["ships_to"] = it.get("ships_to", ["worldwide"])
+        if it.get("image"):
+            full["image"] = it["image"]
         return full
+
+    @staticmethod
+    def ships_ok(item, country):
+        st = item.get("ships_to", ["WORLDWIDE"])
+        if "WORLDWIDE" in st:
+            return True
+        return str(country or "").strip().upper() in st

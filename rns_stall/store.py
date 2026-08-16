@@ -19,6 +19,9 @@ CREATE INDEX IF NOT EXISTS orders_identity ON orders(identity);
 CREATE TABLE IF NOT EXISTS entitlements(
   identity TEXT NOT NULL, sku TEXT NOT NULL, expires REAL,
   PRIMARY KEY(identity, sku));
+CREATE TABLE IF NOT EXISTS profiles(
+  identity TEXT PRIMARY KEY, shipping TEXT, billing TEXT,
+  pay_method TEXT, updated REAL NOT NULL);
 """
 
 
@@ -29,6 +32,8 @@ _MIGRATIONS = (
     "ALTER TABLE orders ADD COLUMN xmr_address TEXT",
     "ALTER TABLE orders ADD COLUMN xmr_index INTEGER",
     "ALTER TABLE orders ADD COLUMN xmr_amount REAL",
+    "ALTER TABLE orders ADD COLUMN pay_method TEXT",
+    "ALTER TABLE orders ADD COLUMN pay_text TEXT",
 )
 
 
@@ -164,6 +169,48 @@ class Store:
                 "status='awaiting_payment' AND xmr_index IS NOT NULL").fetchall()
         return [{"order_id": r[0], "xmr_index": r[1], "xmr_amount": r[2]}
                 for r in rows]
+
+    def order_set_payment(self, order_id, method, text):
+        with self._lock:
+            self._db.execute(
+                "UPDATE orders SET pay_method=?, pay_text=? WHERE order_id=?",
+                (method, text, order_id))
+            self._db.commit()
+
+    def order_payment(self, order_id):
+        with self._lock:
+            row = self._db.execute(
+                "SELECT pay_method,pay_text FROM orders WHERE order_id=?",
+                (order_id,)).fetchone()
+        return {"method": row[0], "text": row[1]} if row and row[0] else None
+
+    # ---- profiles ----
+    def profile_get(self, identity):
+        with self._lock:
+            row = self._db.execute(
+                "SELECT shipping,billing,pay_method FROM profiles WHERE identity=?",
+                (identity,)).fetchone()
+        if not row:
+            return {}
+        return {"shipping": row[0] or "", "billing": row[1] or "",
+                "pay_method": row[2] or ""}
+
+    def profile_set(self, identity, shipping=None, billing=None, pay_method=None):
+        cur = self.profile_get(identity)
+        vals = {"shipping": shipping if shipping is not None else cur.get("shipping"),
+                "billing": billing if billing is not None else cur.get("billing"),
+                "pay_method": pay_method if pay_method is not None
+                else cur.get("pay_method")}
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO profiles(identity,shipping,billing,pay_method,updated) "
+                "VALUES(?,?,?,?,?) ON CONFLICT(identity) DO UPDATE SET "
+                "shipping=excluded.shipping, billing=excluded.billing, "
+                "pay_method=excluded.pay_method, updated=excluded.updated",
+                (identity, vals["shipping"], vals["billing"],
+                 vals["pay_method"], time.time()))
+            self._db.commit()
+        return vals
 
     # ---- entitlements ----
     def entitle(self, identity, sku, expires=None):

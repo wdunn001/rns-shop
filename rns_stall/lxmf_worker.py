@@ -99,9 +99,12 @@ class Worker:
             if not o.get("lxmf"):
                 self.store.mark_notified(o["order_id"])  # nothing to send to
                 continue
+            pay = self.store.order_payment(o["order_id"])
+            pay_line = pay["text"] if pay else self.catalog.shop.get(
+                "invoice_note", "Invoice follows.")
             body = (f"Order {o['order_id']} received — {self._items_line(o)}.\n"
                     f"Total: {o['total']:.2f} {o['currency']}.\n"
-                    f"{self.catalog.shop.get('invoice_note', 'Invoice follows.')}")
+                    f"HOW TO PAY: {pay_line}")
             if self._send(o["lxmf"], f"{self.shop_name}: order {o['order_id']}", body):
                 self.store.mark_notified(o["order_id"])
                 RNS.log(f"[rns-stall] confirmation sent for {o['order_id']}")

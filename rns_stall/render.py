@@ -35,6 +35,18 @@ def _esc(s):
     return str(s).replace("`", "'").replace("\n", " ").strip()
 
 
+def _image_bits(item):
+    """(meshdata_line, page_link) for an item image served from the node's
+    files dir — product photos are public, so /file/ (no ACL) is the right
+    home; paid goods never go there."""
+    img = item.get("image")
+    if not img:
+        return "", ""
+    name = os.path.basename(str(img))
+    return (f"\n# +image: /file/{name}",
+            f"`[📷 product photo`:/file/{name}]   ")
+
+
 def _meshdata_block(item, shop, dest_hex):
     lines = [
         "# +type: product",
@@ -49,7 +61,7 @@ def _meshdata_block(item, shop, dest_hex):
     ]
     if item.get("tags"):
         lines.append(f"# +tags: {', '.join(_esc(t) for t in item['tags'])}")
-    return "\n".join(lines)
+    return "\n".join(lines) + _image_bits(item)[0]
 
 
 def _banner(shop):
@@ -101,6 +113,8 @@ def item_page(item, shop, dest_hex):
 
 {desc}
 
+{_image_bits(item)[1]}`F{DIM}ships to: {', '.join(item.get('ships_to', ['worldwide'])).lower()}`f
+
 `F{GOOD}┌─`f `!BUY IT`!
 `F{GOOD}│`f
 `F{GOOD}│`f  quantity `B{BAND_BG}`<3|qty`1>`b   `F{GOOD}`![⚡ BUY NOW]`!`f `[order this now`:/page/buy/{item['sku']}.mu`qty]
@@ -144,6 +158,26 @@ aspect shop (answers ops, not pages):`f
 -
 `c`F{DIM}powered by`f `F{ACCENT}rns-stall`f `F{DIM}— run your own: https://github.com/wdunn001/rns-stall`f
 `a"""
+
+
+def sync_images(catalog, images_dir, node_files_dir):
+    """Copy catalog item images into the NomadNet node's files dir so
+    /file/<name> resolves. Returns count."""
+    if not images_dir or not node_files_dir or not os.path.isdir(images_dir):
+        return 0
+    os.makedirs(node_files_dir, exist_ok=True)
+    n = 0
+    for item in catalog.items.values():
+        img = item.get("image")
+        if not img:
+            continue
+        src = os.path.join(images_dir, os.path.basename(str(img)))
+        if os.path.isfile(src):
+            dst = os.path.join(node_files_dir, os.path.basename(str(img)))
+            with open(src, "rb") as s, open(dst, "wb") as d:
+                d.write(s.read())
+            n += 1
+    return n
 
 
 def write_pages(catalog, dest_hex, out_dir):

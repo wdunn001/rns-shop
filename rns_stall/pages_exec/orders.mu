@@ -49,6 +49,14 @@ else:
         items = ", ".join(f"{e['qty']}x {esc(e['sku'])}" for e in o["items"])
         print(f"""`F{A}┌─`f `!#{esc(o['order_id'])}`!  `F{color}{esc(o['status'])}`f  `F{D}{when} UTC`f
 `F{A}│`f  {esc(items)}  —  `F{G}{o['total']:.2f} {esc(o['currency'])}`f""")
+        if o["status"] in ("submitted", "awaiting_payment"):
+            try:
+                pay = api(f"/payment?identity={identity}&order_id={o['order_id']}"
+                          ).get("payment")
+            except Exception:
+                pay = None
+            if pay:
+                print(f"`F{A}│`f  `F{W}HOW TO PAY:`f `F{D}{esc(pay['text'])}`f")
         # deliver owned digital goods inline
         for e in o["items"]:
             if o["status"] in ("paid", "fulfilled"):
