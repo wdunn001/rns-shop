@@ -50,11 +50,18 @@ def main():
     ap.add_argument("--shipping")
     ap.add_argument("--note")
     ap.add_argument("--order-id")
+    ap.add_argument("--out", help="output path for delivery.get")
+    ap.add_argument("--no-lxmf", action="store_true",
+                    help="don't register an LXMF inbox with the order")
     ap.add_argument("--config", default=None, help="RNS config dir")
     ap.add_argument("--timeout", type=float, default=90)
     args = ap.parse_args()
 
     aspect = ".".join(protocol.ASPECTS)
+
+    if args.op == "inbox":
+        _inbox(args)
+        return
     if args.op == "manifest":
         m = meshapi_client.fetch_manifest(args.dest, protocol.APP_NAME, aspect,
                                           protocol.PATH, config=args.config,
@@ -77,11 +84,64 @@ def main():
         body["order_id"] = args.order_id
 
     identify = _buyer_identity() if args.op in protocol.IDENTIFIED_OPS else None
+
+    # Ordering: opt in to LXMF confirmations by announcing our delivery
+    # destination and telling the stall its hash.
+    if args.op == protocol.OP_ORDER_SUBMIT and not args.no_lxmf and identify:
+        try:
+            RNS.Reticulum(args.config)
+            lxmf_dest = RNS.Destination(identify, RNS.Destination.IN,
+                                        RNS.Destination.SINGLE, "lxmf", "delivery")
+            lxmf_dest.announce()
+            body["lxmf"] = RNS.hexrep(lxmf_dest.hash, delimit=False)
+            print(f"(LXMF inbox announced: {body['lxmf']} — read receipts with "
+                  f"the 'inbox' op)")
+        except Exception as e:
+            print(f"(LXMF opt-in skipped: {e})")
+
     ok, resp = meshapi_client.call(args.dest, protocol.APP_NAME, aspect,
                                    protocol.PATH, body, config=args.config,
                                    timeout=args.timeout, identify=identify)
-    print(json.dumps(resp, indent=2))
+
+    # delivery.get: write the payload to disk instead of dumping bytes to stdout
+    if ok and args.op == protocol.OP_DELIVERY and isinstance(resp.get("data"), bytes):
+        out = args.out or resp.get("filename", "delivery.bin")
+        with open(out, "wb") as fh:
+            fh.write(resp["data"])
+        print(json.dumps({"ok": True, "op": args.op, "saved": out,
+                          "bytes": len(resp["data"]),
+                          "filename": resp.get("filename")}, indent=2))
+        raise SystemExit(0)
+
+    print(json.dumps(resp, indent=2, default=repr))
     raise SystemExit(0 if ok else 1)
+
+
+def _inbox(args):
+    """Receive LXMF messages (order confirmations/receipts) for the buyer
+    identity. Direct delivery: run it while your node is reachable."""
+    try:
+        import LXMF
+    except ImportError:
+        print("pip install lxmf"); raise SystemExit(1)
+    RNS.Reticulum(args.config)
+    identity = _buyer_identity()
+    router = LXMF.LXMRouter(identity=identity,
+                            storagepath=os.path.expanduser("~/.rns_stall/lxmf"))
+    dest = router.register_delivery_identity(identity, display_name="rns-stall buyer")
+    got = []
+
+    def on_msg(msg):
+        got.append(msg)
+        print(f"\n--- {msg.title_as_string()} ---\n{msg.content_as_string()}\n")
+
+    router.register_delivery_callback(on_msg)
+    router.announce(dest.hash)
+    print(f"inbox open as {RNS.hexrep(dest.hash, delimit=False)} — waiting "
+          f"{int(args.timeout)}s for messages…")
+    import time as _t
+    _t.sleep(args.timeout)
+    print(f"({len(got)} message(s) received)")
 
 
 if __name__ == "__main__":

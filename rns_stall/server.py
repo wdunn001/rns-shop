@@ -17,7 +17,7 @@ import RNS
 from meshapi import service as meshapi_service
 
 from . import catalog as catalog_mod
-from . import manifest, protocol, render
+from . import manifest, payments, protocol, render
 from .store import Store
 
 ANNOUNCE_INTERVAL = 900
@@ -32,6 +32,8 @@ _catalog = None
 _store = None
 _manifest = None
 _pages_out = None
+_files_dir = None
+_xmr = None
 
 _buckets = {}
 _buckets_lock = threading.Lock()
@@ -99,10 +101,12 @@ def _dispatch(req, identity_hex):
             return protocol.err("bad_items", req, "pass items or fill your cart")
         shipping = str(req.get("shipping", ""))[:MAX_TEXT]
         note = str(req.get("note", ""))[:MAX_TEXT]
+        lxmf = str(req.get("lxmf", ""))[:64] or None
         total = _total(items)
         oid = _store.order_create(identity_hex, items, total,
                                   _catalog.shop.get("currency", "USD"),
-                                  {"text": shipping} if shipping else None, note)
+                                  {"text": shipping} if shipping else None, note,
+                                  lxmf=lxmf)
         RNS.log(f"[rns-stall] ORDER {oid} from {identity_hex[:8]}… "
                 f"total {total}", RNS.LOG_NOTICE)
         return protocol.ok({"order_id": oid, "total": total,
@@ -117,6 +121,47 @@ def _dispatch(req, identity_hex):
     if op == protocol.OP_ENTITLEMENT:
         return protocol.ok(
             {"entitled": _store.entitled(identity_hex, str(req.get("sku", "")))}, req)
+    if op == protocol.OP_DELIVERY:
+        sku = str(req.get("sku", ""))
+        it = _catalog.items.get(sku)
+        if not it:
+            return protocol.err("not_found", req)
+        if not _store.entitled(identity_hex, sku):
+            return protocol.err("not_entitled", req, "buy it first")
+        rel = it.get("file")
+        if not rel:
+            return protocol.err("no_file", req, "item has no digital payload")
+        # confine to the files dir — nothing request-derived touches the path
+        fp = os.path.realpath(os.path.join(_files_dir, rel))
+        if not fp.startswith(os.path.realpath(_files_dir)) or not os.path.isfile(fp):
+            return protocol.err("no_file", req)
+        with open(fp, "rb") as fh:
+            data = fh.read()
+        RNS.log(f"[rns-stall] DELIVERY {sku} -> {identity_hex[:8]}… "
+                f"({len(data)} bytes)", RNS.LOG_NOTICE)
+        return protocol.ok({"filename": os.path.basename(fp), "data": data}, req)
+    if op == protocol.OP_PAY_LINK:
+        o = _store.order_get(identity_hex, str(req.get("order_id", "")))
+        if not o:
+            return protocol.err("not_found", req)
+        url = payments.pay_link(_catalog.shop, o)
+        if not url:
+            return protocol.err("not_configured", req,
+                                "no pay_link_template/pay_links in shop config")
+        return protocol.ok({"url": url}, req)
+    if op == protocol.OP_PAY_XMR:
+        if _xmr is None:
+            return protocol.err("not_configured", req, "XMR rail not enabled")
+        o = _store.order_get(identity_hex, str(req.get("order_id", "")))
+        if not o:
+            return protocol.err("not_found", req)
+        addr, idx = _xmr.assign_subaddress(o["order_id"])
+        rate = float(_catalog.shop.get("xmr_rate", 0)) or None
+        if rate is None:
+            return protocol.err("not_configured", req, "shop.xmr_rate unset")
+        amount = round(o["total"] / rate, 8)
+        _store.order_set_xmr(o["order_id"], addr, idx, amount)
+        return protocol.ok({"address": addr, "amount_xmr": amount}, req)
     return protocol.err("bad_op", req)
 
 
@@ -180,7 +225,7 @@ class _HealthHandler(BaseHTTPRequestHandler):
 
 
 def main():
-    global _catalog, _store, _manifest, _pages_out
+    global _catalog, _store, _manifest, _pages_out, _files_dir, _xmr
     ap = argparse.ArgumentParser()
     ap.add_argument("--identity", default=os.environ.get("STALL_IDENTITY",
                     os.path.expanduser("~/.rns_stall/identity")))
@@ -188,6 +233,7 @@ def main():
     ap.add_argument("--catalog", default=os.environ.get("STALL_CATALOG", "catalog.yaml"))
     ap.add_argument("--db", default=os.environ.get("STALL_DB", "stall.db"))
     ap.add_argument("--pages-out", default=os.environ.get("STALL_PAGES_OUT", "pages"))
+    ap.add_argument("--files", default=os.environ.get("STALL_FILES", "files"))
     ap.add_argument("--healthz-port", type=int,
                     default=int(os.environ.get("HEALTHZ_PORT", "8216")))
     args = ap.parse_args()
@@ -201,9 +247,15 @@ def main():
         identity = RNS.Identity()
         identity.to_file(args.identity)
 
-    _catalog = catalog_mod.Catalog(args.catalog)
+    if str(args.catalog).startswith("medusa://"):
+        from .medusa import MedusaCatalog
+        _catalog = MedusaCatalog(args.catalog)
+    else:
+        _catalog = catalog_mod.Catalog(args.catalog)
     _store = Store(args.db)
     _pages_out = args.pages_out
+    _files_dir = os.path.abspath(args.files)
+    os.makedirs(_files_dir, exist_ok=True)
 
     dest = RNS.Destination(identity, RNS.Destination.IN, RNS.Destination.SINGLE,
                            protocol.APP_NAME, *protocol.ASPECTS)
@@ -221,6 +273,18 @@ def main():
 
     _state["ok"] = bool(_catalog.items)
     _state["items"] = len(_catalog.items)
+
+    # LXMF worker: confirmations, receipts, digital entitlement (M2)
+    from .lxmf_worker import Worker
+    Worker(_store, _catalog, os.path.dirname(os.path.abspath(args.identity)),
+           _catalog.shop.get("name", "stall")).start()
+
+    # XMR watch-only rail (M4) — dormant unless configured
+    xmr_rpc = os.environ.get("STALL_XMR_RPC")
+    if xmr_rpc:
+        _xmr = payments.XmrWatcher(_store, xmr_rpc)
+        _xmr.start()
+
     threading.Thread(target=_health_loop, args=(dest,), daemon=True).start()
     srv = ThreadingHTTPServer(("0.0.0.0", args.healthz_port), _HealthHandler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()

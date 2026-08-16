@@ -22,12 +22,27 @@ CREATE TABLE IF NOT EXISTS entitlements(
 """
 
 
+_MIGRATIONS = (
+    "ALTER TABLE orders ADD COLUMN lxmf TEXT",
+    "ALTER TABLE orders ADD COLUMN notified INTEGER DEFAULT 0",
+    "ALTER TABLE orders ADD COLUMN receipted INTEGER DEFAULT 0",
+    "ALTER TABLE orders ADD COLUMN xmr_address TEXT",
+    "ALTER TABLE orders ADD COLUMN xmr_index INTEGER",
+    "ALTER TABLE orders ADD COLUMN xmr_amount REAL",
+)
+
+
 class Store:
     def __init__(self, path):
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         self._lock = threading.Lock()
         self._db = sqlite3.connect(path, check_same_thread=False)
         self._db.executescript(_SCHEMA)
+        for mig in _MIGRATIONS:
+            try:
+                self._db.execute(mig)
+            except sqlite3.OperationalError:
+                pass  # column already exists
         self._db.commit()
 
     # ---- carts ----
@@ -47,14 +62,16 @@ class Store:
         return items
 
     # ---- orders ----
-    def order_create(self, identity, items, total, currency, shipping=None, note=None):
+    def order_create(self, identity, items, total, currency, shipping=None,
+                     note=None, lxmf=None):
         oid = secrets.token_hex(4)
         now = time.time()
         with self._lock:
             self._db.execute(
-                "INSERT INTO orders VALUES(?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO orders(order_id,identity,items,shipping,note,total,"
+                "currency,status,created,updated,lxmf) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 (oid, identity, json.dumps(items), json.dumps(shipping or {}),
-                 note or "", total, currency, "submitted", now, now))
+                 note or "", total, currency, "submitted", now, now, lxmf))
             self._db.execute("DELETE FROM carts WHERE identity=?", (identity,))
             self._db.commit()
         return oid
@@ -77,14 +94,68 @@ class Store:
                              (status, time.time(), order_id))
             self._db.commit()
 
-    def orders_pending(self):
-        """For the worker: orders needing action (confirmation, fulfillment)."""
+    _WORKER_COLS = "order_id,identity,items,total,currency,status,lxmf"
+
+    def _worker_rows(self, where):
         with self._lock:
             rows = self._db.execute(
-                "SELECT order_id,identity,items,total,currency,status FROM orders "
-                "WHERE status IN ('submitted','paid')").fetchall()
+                f"SELECT {self._WORKER_COLS} FROM orders WHERE {where}").fetchall()
         return [{"order_id": r[0], "identity": r[1], "items": json.loads(r[2]),
-                 "total": r[3], "currency": r[4], "status": r[5]} for r in rows]
+                 "total": r[3], "currency": r[4], "status": r[5], "lxmf": r[6]}
+                for r in rows]
+
+    def orders_unnotified(self):
+        return self._worker_rows("status='submitted' AND notified=0")
+
+    def orders_unreceipted(self):
+        return self._worker_rows("status='paid' AND receipted=0")
+
+    def orders_all(self):
+        return self._worker_rows("1=1 ORDER BY created")
+
+    def order_admin_get(self, order_id):
+        with self._lock:
+            row = self._db.execute(
+                "SELECT order_id,identity,items,shipping,note,total,currency,"
+                "status,created,updated,lxmf,notified,receipted FROM orders "
+                "WHERE order_id=?", (order_id,)).fetchone()
+        if not row:
+            return None
+        return {"order_id": row[0], "identity": row[1], "items": json.loads(row[2]),
+                "shipping": json.loads(row[3] or "{}"), "note": row[4],
+                "total": row[5], "currency": row[6], "status": row[7],
+                "created": row[8], "updated": row[9], "lxmf": row[10],
+                "notified": row[11], "receipted": row[12]}
+
+    def mark_notified(self, order_id):
+        with self._lock:
+            self._db.execute("UPDATE orders SET notified=1 WHERE order_id=?",
+                             (order_id,))
+            self._db.commit()
+
+    def mark_receipted(self, order_id, new_status):
+        with self._lock:
+            self._db.execute(
+                "UPDATE orders SET receipted=1, status=?, updated=? WHERE order_id=?",
+                (new_status, time.time(), order_id))
+            self._db.commit()
+
+    # ---- xmr rail ----
+    def order_set_xmr(self, order_id, address, index, amount):
+        with self._lock:
+            self._db.execute(
+                "UPDATE orders SET xmr_address=?, xmr_index=?, xmr_amount=?, "
+                "status='awaiting_payment', updated=? WHERE order_id=?",
+                (address, index, amount, time.time(), order_id))
+            self._db.commit()
+
+    def orders_awaiting_xmr(self):
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT order_id,xmr_index,xmr_amount FROM orders WHERE "
+                "status='awaiting_payment' AND xmr_index IS NOT NULL").fetchall()
+        return [{"order_id": r[0], "xmr_index": r[1], "xmr_amount": r[2]}
+                for r in rows]
 
     # ---- entitlements ----
     def entitle(self, identity, sku, expires=None):

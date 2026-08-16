@@ -14,13 +14,18 @@ OP_CART_SET = "cart.set"
 OP_ORDER_SUBMIT = "order.submit"
 OP_ORDER_STATUS = "order.status"
 OP_ENTITLEMENT = "entitlement.check"
+OP_DELIVERY = "delivery.get"
+OP_PAY_LINK = "pay.link"
+OP_PAY_XMR = "pay.xmr"
 
 OPS = (OP_CATALOG_LIST, OP_CATALOG_GET, OP_CART_GET, OP_CART_SET,
-       OP_ORDER_SUBMIT, OP_ORDER_STATUS, OP_ENTITLEMENT)
+       OP_ORDER_SUBMIT, OP_ORDER_STATUS, OP_ENTITLEMENT,
+       OP_DELIVERY, OP_PAY_LINK, OP_PAY_XMR)
 
 # ops that require an identified link (link.identify() client-side)
 IDENTIFIED_OPS = (OP_CART_GET, OP_CART_SET, OP_ORDER_SUBMIT,
-                  OP_ORDER_STATUS, OP_ENTITLEMENT)
+                  OP_ORDER_STATUS, OP_ENTITLEMENT,
+                  OP_DELIVERY, OP_PAY_LINK, OP_PAY_XMR)
 
 ORDER_STATES = ("submitted", "awaiting_payment", "paid", "fulfilled",
                 "cancelled", "expired")

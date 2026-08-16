@@ -76,6 +76,8 @@ Ops: catalog.list · catalog.get · cart.get/set · order.submit · order.status
 entitlement.check (identified ops need link.identify). Payment v1 = invoice:
 {_esc(shop.get('invoice_note', 'you will receive an LXMF invoice after ordering.'))}
 
+`[docs & how this works`:/page/docs/index.mu]
+
 Powered by `!rns-stall`! — https://github.com/wdunn001/rns-stall
 """
 

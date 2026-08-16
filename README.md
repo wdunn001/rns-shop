@@ -63,24 +63,34 @@ Identified ops (cart/order/entitlement) sign the link with your buyer identity
 ## Ops
 
 `catalog.list` · `catalog.get` · `cart.get` · `cart.set` · `order.submit` ·
-`order.status` · `entitlement.check` — full schemas in the live manifest.
+`order.status` · `entitlement.check` · `delivery.get` · `pay.link` · `pay.xmr`
+— full schemas in the live manifest.
+
+**Digital delivery**: `delivery.get` streams a purchased file over the encrypted
+Link (entitlement-checked; RNS handles large payloads as Resources). Merchant
+settles an invoice with `python3 -m rns_stall.admin --db … mark-paid <order>` —
+the LXMF worker then entitles digital SKUs and sends the receipt automatically.
+Buyers read confirmations with `python3 -m rns_stall.client <dest> inbox`.
 
 ## Payment rails
 
-- **v1 (now): invoice.** Orders record the buyer identity; the merchant invoices
-  via LXMF and settles out-of-band. The honest rail — it works with zero
-  infrastructure, and it proves the plumbing the automated rails reuse.
-- **M3: hybrid web checkout.** `pay.link` returns a short-lived HTTPS checkout
-  URL (Stripe/Medusa); a webhook bridge flips the order paid; LXMF confirms.
-- **M4: Monero.** `pay.xmr` returns a per-order subaddress from a **watch-only**
-  wallet; a watcher confirms. No spend keys near the mesh, ever.
+- **Invoice (default).** Orders record the buyer identity; the merchant settles
+  out-of-band and runs `mark-paid`. LXMF confirmation + receipt are automatic.
+- **Hybrid web checkout.** Set `shop.pay_link_template` (e.g. a Stripe payment
+  link with `{order_id}` as client reference) — `pay.link` hands buyers the URL;
+  your processor's webhook hits `rns_stall.webhook_bridge` (`POST /paid`,
+  shared-secret) to flip the order paid.
+- **Monero (watch-only).** Set `STALL_XMR_RPC` to a view-only monero-wallet-rpc
+  and `shop.xmr_rate` — `pay.xmr` assigns a per-order subaddress; the watcher
+  confirms transfers. No spend keys near the mesh, ever.
 
 ## Status / roadmap
 
-v0.1 = M0–M2 of the plan: catalog, storefront + MeshData records, carts, orders,
-entitlements, invoice rail. Next: LXMF worker (auto-confirmations), payment
-rails, Medusa/ERPNext connectors. Non-goal, permanently: hosting a multi-vendor
-marketplace — run your own stall.
+v0.2: catalog (YAML or `medusa://` connector), storefront + MeshData records,
+carts, orders, entitlements, LXMF confirmations/receipts, gated digital delivery
+over the mesh, invoice + pay-link + XMR(watch-only) rails, webhook bridge, admin
+CLI. Next: ERPNext order push, Beacon shop view, Sideband LXMF ordering bot.
+Non-goal, permanently: hosting a multi-vendor marketplace — run your own stall.
 
 ## Family
 
