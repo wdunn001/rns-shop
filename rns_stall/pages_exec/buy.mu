@@ -80,10 +80,12 @@ except Exception:
 ADDR = ("name", "street", "street2", "city", "region", "postal", "country")
 addr = {k: (E(f"field_{k}") or "").strip() for k in ADDR}
 method = (E("field_method") or "").strip()
-# step 2 iff the form was submitted: the method radio only exists on the form,
-# and the CONFIRM link submits every field (`*`). No literal link-vars — that
-# syntax isn't supported by all clients.
-confirmed = E("field_method") is not None
+# step 2 iff the form was submitted. Detection is belt-and-braces: a `step`
+# text field (prefilled "2") plus the method radio — some clients don't send
+# radios/checkboxes, and neither `*` nor literal name=value link-vars are
+# universally supported, so the CONFIRM link enumerates bare field names only.
+confirmed = (E("field_step") or "").strip() == "2" \
+    or E("field_method") is not None
 
 # ---------- step 2: place the order ----------
 if confirmed:
@@ -134,7 +136,7 @@ if not confirmed:
         pass
 
     print(f"\n`!{esc(item['title'])}`!  —  `F{G}{item['price']:.2f} "
-          f"{esc(item.get('currency', 'USD'))}`f  ·  quantity: `!{qty}`!\n")
+          f"{esc(item.get('currency', 'USD'))}`f   quantity `B{BG}`<3|qty`{qty}>`b\n")
 
     if physical:
         ships = ", ".join(item.get("ships_to", ["worldwide"])).lower()
@@ -151,9 +153,15 @@ if not confirmed:
     for m in methods:
         pre = "|*" if m["method"] == picked else ""
         print(f"`F{A}│`f  `<^|method|{m['method']}{pre}`{esc(m['label'])}>")
-    print(f"""`F{A}│`f  note `B{BG}`<24|note`>`b   remember me `<?|save|yes`>
-`F{A}└─`f
-`c
-`F{G}`!▶ `[CONFIRM ORDER`:/page/buy/{sku}.mu`*]`! `f
+    # `step` is the submission marker (prefilled "2") — don't edit it; some
+    # clients don't submit radios, and `*` isn't universal.
+    print(f"""`F{A}│`f  note `B{BG}`<24|note`>`b   remember me `<?|save|yes`>   `F{D}confirm code`f `B{BG}`<1|step`2>`b
+`F{A}└─`f""")
+    link_fields = ["qty", "method", "note", "save", "step"]
+    if physical:
+        link_fields += list(ADDR)
+    fields = "|".join(link_fields)
+    print(f"""`c
+`!`[▶ CONFIRM ORDER`:/page/buy/{sku}.mu`{fields}]`!
 `a""")
 foot()
