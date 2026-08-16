@@ -126,7 +126,30 @@ class XmrProvider(Provider):
             w.start()
 
 
-BUILTINS = {p.method: p for p in (InvoiceProvider, LinkProvider, XmrProvider)}
+class ManualProvider(Provider):
+    """Arbitrary payment instructions from config — bank transfer, cash at
+    pickup, a crypto address you check by hand, anything. Multiple manual
+    rails can coexist via distinct `id`s. Placeholders: {order_id} {total}."""
+    method = "manual"
+
+    def __init__(self, cfg, ctx):
+        super().__init__(cfg, ctx)
+        self.method = cfg.get("id", "manual")
+        self.label = cfg.get("label", "Manual payment")
+
+    def instruction(self, order):
+        text = self.cfg.get("instructions",
+                            "The merchant will contact you with payment steps.")
+        try:
+            text = text.format(order_id=order["order_id"],
+                               total=f"{order['total']:.2f}")
+        except (KeyError, IndexError):
+            pass
+        return PaymentInstruction(self.method, text)
+
+
+BUILTINS = {p.method: p for p in (InvoiceProvider, LinkProvider, XmrProvider,
+                                  ManualProvider)}
 
 
 class Rails:
@@ -143,7 +166,7 @@ class Rails:
                         f"{cfg.get('method')!r} — skipped", RNS.LOG_WARNING)
                 continue
             p = cls(cfg, ctx)
-            self.providers[p.method] = p
+            self.providers[p.method] = p  # ManualProvider may rename via `id`
         if "invoice" not in self.providers:
             self.providers["invoice"] = InvoiceProvider({}, ctx)
 
