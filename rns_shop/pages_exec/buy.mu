@@ -13,6 +13,12 @@ import json
 import os
 import urllib.request
 
+try:                                    # Beacon-Analytics RUM page view (best-effort)
+    from beaconrum import track as _rum
+    _rum("rns-shop", "/page/buy.mu")
+except Exception:
+    pass
+
 A, G, W, D, BG = "5cf", "6d8", "ec7", "89a", "124"
 API = os.environ.get("SHOP_LOCAL_API_URL", "http://127.0.0.1:8219")
 
