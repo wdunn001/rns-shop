@@ -19,6 +19,9 @@ from meshapi import service as meshapi_service
 
 from . import catalog as catalog_mod
 from . import manifest, payments, protocol, providers, render
+from . import shipping as shipping_mod  # aliased -- _submit_order's own
+                                        # `shipping` param (the address
+                                        # dict) would otherwise shadow it
 from .store import Store
 
 ADDRESS_FIELDS = ("name", "street", "street2", "city", "region", "postal",
@@ -117,7 +120,7 @@ def _items_valid(items):
     return out
 
 
-def _total(items):
+def _subtotal(items):
     return round(sum(_catalog.items[e["sku"]]["price"] * e["qty"] for e in items), 2)
 
 
@@ -135,6 +138,43 @@ def _dispatch(req, identity_hex):
         if items is None:
             return protocol.err("bad_items", req)
         return protocol.ok({"items": _store.cart_set(identity_hex, items)}, req)
+    if op == protocol.OP_CART_ADD:
+        sku = str(req.get("sku", ""))
+        if sku not in _catalog.items:
+            return protocol.err("not_found", req)
+        try:
+            qty = max(1, min(Store.MAX_CART_QTY, int(req.get("qty", 1))))
+        except (TypeError, ValueError):
+            return protocol.err("bad_items", req)
+        return protocol.ok({"items": _store.cart_add(identity_hex, sku, qty)}, req)
+    if op == protocol.OP_CART_REMOVE:
+        sku = str(req.get("sku", ""))
+        qty_raw = req.get("qty")
+        try:
+            qty = int(qty_raw) if qty_raw is not None else None
+        except (TypeError, ValueError):
+            return protocol.err("bad_items", req)
+        return protocol.ok({"items": _store.cart_remove(identity_hex, sku, qty)}, req)
+    if op == protocol.OP_CART_SET_QTY:
+        sku = str(req.get("sku", ""))
+        try:
+            qty = int(req.get("qty", 0))
+        except (TypeError, ValueError):
+            return protocol.err("bad_items", req)
+        if qty > 0 and sku not in _catalog.items:
+            return protocol.err("not_found", req)
+        return protocol.ok({"items": _store.cart_set_qty(identity_hex, sku, qty)}, req)
+    if op == protocol.OP_ORDER_REORDER:
+        o = _store.order_get(identity_hex, str(req.get("order_id", "")))
+        if not o:
+            return protocol.err("not_found", req)
+        skipped = 0
+        for e in o["items"]:
+            if e["sku"] in _catalog.items:
+                _store.cart_add(identity_hex, e["sku"], e["qty"])
+            else:
+                skipped += 1   # discontinued SKU -- skip rather than fail the whole reorder
+        return protocol.ok({"items": _store.cart_get(identity_hex), "skipped": skipped}, req)
     if op == protocol.OP_ORDER_SUBMIT:
         items = req.get("items") or _store.cart_get(identity_hex)
         items = _items_valid(items)
@@ -201,15 +241,26 @@ def _dispatch(req, identity_hex):
 def _submit_order(identity_hex, items, shipping=None, note="", lxmf=None,
                   method=None):
     """Shared order path: RNS op and the node's local checkout both land here.
-    Returns dict with err OR the order + its payment instruction."""
+    Returns dict with err OR the order + its payment instruction. `shipping`
+    here is the buyer's ADDRESS (from checkout) -- see _order_checks, which
+    is where the vendor's ships_to restriction is actually enforced, always
+    AFTER the address is collected, never before (a buyer has to tell us
+    where before we can say yes/no, same as any real storefront)."""
     addr = _clean_address(shipping)
     bad = _order_checks(items, addr)
     if bad:
         return {"ok": False, "err": bad}
-    total = _total(items)
+    subtotal = _subtotal(items)
+    # shipping.quote() is a rough estimate by design (flat/weight-tier
+    # config, no live carrier rate-shopping yet -- see shipping.py) and
+    # NEVER raises; a shipping-config bug degrades to "no fee charged"
+    # rather than blocking checkout.
+    fee = shipping_mod.quote(_catalog, items, addr)
+    total = round(subtotal + (fee or 0.0), 2)
     oid = _store.order_create(identity_hex, items, total,
                               _catalog.shop.get("currency", "USD"),
-                              addr, note, lxmf=lxmf)
+                              addr, note, lxmf=lxmf,
+                              subtotal=subtotal, shipping_fee=fee)
     order = {"order_id": oid, "total": total, "items": items}
     preferred = method or _store.profile_get(identity_hex).get("pay_method")
     options = _rails.instructions_all(order, preferred=preferred)
@@ -217,9 +268,10 @@ def _submit_order(identity_hex, items, shipping=None, note="", lxmf=None,
     joined = "\n".join(f"[{o['label']}] {o['text']}" for o in options)
     _store.order_set_payment(oid, options[0]["method"] if options else "invoice",
                              joined)
-    RNS.log(f"[rns-shop] ORDER {oid} from {identity_hex[:8]}… total {total}",
-            RNS.LOG_NOTICE)
-    return {"ok": True, "order_id": oid, "total": total,
+    RNS.log(f"[rns-shop] ORDER {oid} from {identity_hex[:8]}… subtotal {subtotal} "
+            f"+ shipping {fee or 0.0} = total {total}", RNS.LOG_NOTICE)
+    return {"ok": True, "order_id": oid, "subtotal": subtotal,
+            "shipping_fee": fee, "total": total,
             "currency": _catalog.shop.get("currency", "USD"),
             "payment": options[0] if options else None,
             "payments": options,

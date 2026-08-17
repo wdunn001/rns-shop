@@ -36,6 +36,12 @@ _MIGRATIONS = (
     "ALTER TABLE orders ADD COLUMN xmr_amount REAL",
     "ALTER TABLE orders ADD COLUMN pay_method TEXT",
     "ALTER TABLE orders ADD COLUMN pay_text TEXT",
+    # shipping.py: subtotal is the pre-shipping item total, shipping_fee is
+    # what shipping.quote() added (0/NULL when free or not applicable).
+    # `total` (existing column) stays subtotal+shipping_fee -- unchanged
+    # meaning for every caller that already reads it.
+    "ALTER TABLE orders ADD COLUMN subtotal REAL",
+    "ALTER TABLE orders ADD COLUMN shipping_fee REAL",
 )
 
 
@@ -53,13 +59,19 @@ class Store:
         self._db.commit()
 
     # ---- carts ----
+    # Persistent per-identity (SQLite, no expiry -- carries across visits by
+    # design: the buyer's RNS identity IS the account, so "log back in
+    # later" is just reconnecting with the same identity). One active cart
+    # per identity, same as any standard storefront's server-side cart.
+    MAX_CART_QTY = 999
+
     def cart_get(self, identity):
         with self._lock:
             row = self._db.execute(
                 "SELECT items FROM carts WHERE identity=?", (identity,)).fetchone()
         return json.loads(row[0]) if row else []
 
-    def cart_set(self, identity, items):
+    def _cart_save(self, identity, items):
         with self._lock:
             self._db.execute(
                 "INSERT INTO carts(identity,items,updated) VALUES(?,?,?) "
@@ -68,17 +80,65 @@ class Store:
             self._db.commit()
         return items
 
+    def cart_set(self, identity, items):
+        """Full replace -- bulk/programmatic clients (a dedicated RNS
+        client that already tracks its own cart state) use this; the page
+        UI uses the incremental ops below instead, so one "add to cart"
+        click never needs to already know the whole current cart."""
+        return self._cart_save(identity, items)
+
+    def cart_add(self, identity, sku, qty):
+        """Add `qty` of a sku, incrementing an existing line rather than
+        duplicating it -- standard "add to cart" semantics."""
+        items = self.cart_get(identity)
+        for e in items:
+            if e["sku"] == sku:
+                e["qty"] = min(self.MAX_CART_QTY, e["qty"] + qty)
+                break
+        else:
+            items.append({"sku": sku, "qty": min(self.MAX_CART_QTY, qty)})
+        return self._cart_save(identity, items)
+
+    def cart_remove(self, identity, sku, qty=None):
+        """Remove a sku entirely (qty=None), or decrement by qty (dropping
+        the line once it reaches 0) -- standard "remove" / "-" stepper."""
+        items = self.cart_get(identity)
+        out = []
+        for e in items:
+            if e["sku"] != sku:
+                out.append(e)
+                continue
+            if qty is None:
+                continue
+            remaining = e["qty"] - qty
+            if remaining > 0:
+                out.append({"sku": sku, "qty": remaining})
+        return self._cart_save(identity, out)
+
+    def cart_set_qty(self, identity, sku, qty):
+        """Exact quantity for one line (qty<=0 removes it) -- the "type a
+        number in the qty box" case, without the caller computing a delta."""
+        items = [e for e in self.cart_get(identity) if e["sku"] != sku]
+        if qty > 0:
+            items.append({"sku": sku, "qty": min(self.MAX_CART_QTY, qty)})
+        return self._cart_save(identity, items)
+
+    def cart_clear(self, identity):
+        return self._cart_save(identity, [])
+
     # ---- orders ----
     def order_create(self, identity, items, total, currency, shipping=None,
-                     note=None, lxmf=None):
+                     note=None, lxmf=None, subtotal=None, shipping_fee=None):
         oid = secrets.token_hex(4)
         now = time.time()
         with self._lock:
             self._db.execute(
                 "INSERT INTO orders(order_id,identity,items,shipping,note,total,"
-                "currency,status,created,updated,lxmf) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                "currency,status,created,updated,lxmf,subtotal,shipping_fee) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (oid, identity, json.dumps(items), json.dumps(shipping or {}),
-                 note or "", total, currency, "submitted", now, now, lxmf))
+                 note or "", total, currency, "submitted", now, now, lxmf,
+                 subtotal, shipping_fee))
             self._db.execute("DELETE FROM carts WHERE identity=?", (identity,))
             self._db.commit()
         return oid
@@ -86,14 +146,15 @@ class Store:
     def order_get(self, identity, order_id):
         with self._lock:
             row = self._db.execute(
-                "SELECT order_id,items,total,currency,status,created,updated "
+                "SELECT order_id,items,total,currency,status,created,updated,"
+                "subtotal,shipping_fee "
                 "FROM orders WHERE order_id=? AND identity=?",
                 (order_id, identity)).fetchone()
         if not row:
             return None
         return {"order_id": row[0], "items": json.loads(row[1]), "total": row[2],
                 "currency": row[3], "status": row[4], "created": row[5],
-                "updated": row[6]}
+                "updated": row[6], "subtotal": row[7], "shipping_fee": row[8]}
 
     def order_set_status(self, order_id, status):
         with self._lock:
@@ -145,24 +206,27 @@ class Store:
     def orders_for_identity(self, identity):
         with self._lock:
             rows = self._db.execute(
-                "SELECT order_id,items,total,currency,status,created FROM orders "
+                "SELECT order_id,items,total,currency,status,created,"
+                "subtotal,shipping_fee FROM orders "
                 "WHERE identity=? ORDER BY created DESC LIMIT 25", (identity,)).fetchall()
         return [{"order_id": r[0], "items": json.loads(r[1]), "total": r[2],
-                 "currency": r[3], "status": r[4], "created": r[5]} for r in rows]
+                 "currency": r[3], "status": r[4], "created": r[5],
+                 "subtotal": r[6], "shipping_fee": r[7]} for r in rows]
 
     def order_admin_get(self, order_id):
         with self._lock:
             row = self._db.execute(
                 "SELECT order_id,identity,items,shipping,note,total,currency,"
-                "status,created,updated,lxmf,notified,receipted FROM orders "
-                "WHERE order_id=?", (order_id,)).fetchone()
+                "status,created,updated,lxmf,notified,receipted,subtotal,"
+                "shipping_fee FROM orders WHERE order_id=?", (order_id,)).fetchone()
         if not row:
             return None
         return {"order_id": row[0], "identity": row[1], "items": json.loads(row[2]),
                 "shipping": json.loads(row[3] or "{}"), "note": row[4],
                 "total": row[5], "currency": row[6], "status": row[7],
                 "created": row[8], "updated": row[9], "lxmf": row[10],
-                "notified": row[11], "receipted": row[12]}
+                "notified": row[11], "receipted": row[12], "subtotal": row[13],
+                "shipping_fee": row[14]}
 
     def mark_notified(self, order_id):
         with self._lock:

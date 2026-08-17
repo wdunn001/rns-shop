@@ -21,9 +21,19 @@ catalog.yaml shape (the default backend):
       availability: in_stock      # in_stock|made_to_order|out_of_stock|digital
       tags: [apparel]
       kind: physical              # physical|digital|service
+      ships_to: [US, CA]          # ISO-3166 alpha-2, or [worldwide] -- item
+                                   # override; else shop.ships_to; else
+                                   # DENIED EVERYWHERE (see CatalogSource.
+                                   # ships_ok -- safe by default, never a
+                                   # silent worldwide fallback)
+      weight_kg: 0.3               # optional, for shop.shipping's weight_tiers
+                                   # method (see shipping.py)
 
 External source: SHOP_CATALOG=<scheme>://<...> selects a registered
 CatalogSource subclass instead of the YAML file -- see SCHEME_MODULES below.
+
+Shipping COST (separate from ships_to, which only gates whether an order is
+accepted at all): see shipping.py -- shop.shipping in this same YAML block.
 """
 import importlib
 import os
@@ -83,14 +93,29 @@ class CatalogSource:
             return None
         full = dict(self.summary(it))
         full["description"] = it.get("description", "")
-        full["ships_to"] = it.get("ships_to", ["worldwide"])
+        # SAFE BY DEFAULT: no declared destinations means "not configured",
+        # never "everywhere" -- see ships_ok's docstring for why this matters
+        # more than it looks for a generic, plug-in-any-source interface.
+        full["ships_to"] = it.get("ships_to") or []
         if it.get("image"):
             full["image"] = it["image"]
         return full
 
     @staticmethod
     def ships_ok(item, country):
-        st = item.get("ships_to", ["WORLDWIDE"])
+        """SAFE BY DEFAULT: an item with no declared ships_to is treated as
+        "the vendor hasn't said where they'll ship this", not "anywhere" --
+        physical goods checkout REFUSES rather than silently allowing a
+        destination nobody configured. This interface backs any catalog
+        source a vendor plugs in (Squarespace today, anything else
+        tomorrow); a connector whose upstream doesn't expose real shipping-
+        destination data (Squarespace's API doesn't -- see squarespace.py)
+        must never let that turn into "ships worldwide" by default. A
+        vendor opts into WORLDWIDE explicitly, the same way they'd list any
+        other destination -- it's never assumed."""
+        st = [str(c).strip().upper() for c in (item.get("ships_to") or [])]
+        if not st:
+            return False
         if "WORLDWIDE" in st:
             return True
         return str(country or "").strip().upper() in st
@@ -125,10 +150,14 @@ class Catalog(CatalogSource):
             if it["kind"] not in KINDS:
                 raise ValueError(f"{sku}: bad kind {it['kind']!r}")
             it["tags"] = list(it.get("tags") or [])
-            # ships_to: item override else shop default else worldwide.
-            # Uppercase ISO-3166 alpha-2 codes, or ["worldwide"].
-            st = it.get("ships_to") or shop.get("ships_to") or ["worldwide"]
+            # ships_to: item override else shop default else NOT configured
+            # (empty -- see CatalogSource.ships_ok: that means "denied
+            # everywhere" until the merchant says otherwise, not worldwide).
+            # Uppercase ISO-3166 alpha-2 codes, or ["worldwide"] as an
+            # explicit opt-in.
+            st = it.get("ships_to") or shop.get("ships_to") or []
             it["ships_to"] = [str(c).strip().upper() for c in st]
+            it["weight_kg"] = it.get("weight_kg")  # optional, for shipping.py's weight_tiers
             items[sku] = it
         self.shop = shop
         self.items = items

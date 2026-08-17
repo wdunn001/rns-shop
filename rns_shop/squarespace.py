@@ -15,11 +15,15 @@ process listing).
 Required env:
   SQUARESPACE_API_KEY     Settings > Advanced > API Keys in the Squarespace
                            admin; needs at least Products + Inventory read.
+  SQUARESPACE_SHIPS_TO    comma-separated ISO-3166 alpha-2 codes, or the
+                           literal value WORLDWIDE -- NO DEFAULT, see HONEST
+                           LIMITATION below. Physical-item checkout is
+                           refused for every destination until this is set
+                           (catalog.CatalogSource.ships_ok is safe-by-
+                           default: undeclared means denied, never allowed).
 Optional env:
   SQUARESPACE_CURRENCY    default "usd"
   SQUARESPACE_SHOP_NAME   default "shop (squarespace)"
-  SQUARESPACE_SHIPS_TO    comma-separated ISO-3166 alpha-2 codes, or
-                           "worldwide" (default) -- see HONEST LIMITATION
   SQUARESPACE_API_BASE    default https://api.squarespace.com
   SQUARESPACE_API_VERSION default "1.0"
 
@@ -88,9 +92,25 @@ class SquarespaceCatalog(CatalogSource):
         self.base = os.environ.get("SQUARESPACE_API_BASE", "https://api.squarespace.com").rstrip("/")
         self.api_version = os.environ.get("SQUARESPACE_API_VERSION", "1.0")
         currency = os.environ.get("SQUARESPACE_CURRENCY", "usd").upper()
-        ships_to = [c.strip().upper() for c in
-                   os.environ.get("SQUARESPACE_SHIPS_TO", "worldwide").split(",") if c.strip()]
-        self.default_ships_to = ships_to or ["WORLDWIDE"]
+        # REQUIRED, no silent default. Squarespace's public Commerce API does
+        # not expose a real ships-to-country list (see module docstring's
+        # HONEST LIMITATION), so there is no ground truth to fall back to --
+        # only the merchant knows where they're actually willing to ship
+        # physical goods, and catalog.CatalogSource.ships_ok() is safe-by-
+        # default (undeclared = denied everywhere) specifically so a
+        # connector like this one can never turn "nobody set this yet" into
+        # "ships worldwide" by accident. Explicitly set to WORLDWIDE if
+        # that's genuinely true for this shop.
+        raw_ships_to = os.environ.get("SQUARESPACE_SHIPS_TO")
+        if not raw_ships_to:
+            raise RuntimeError(
+                "SHOP_CATALOG=squarespace://... needs SQUARESPACE_SHIPS_TO set -- "
+                "comma-separated ISO-3166 alpha-2 country codes this shop will "
+                "actually ship physical goods to (or the literal value WORLDWIDE "
+                "if genuinely unrestricted). No default: Squarespace's API doesn't "
+                "expose real shipping-destination data, so guessing here would "
+                "mean silently offering to ship somewhere the merchant never agreed to.")
+        self.default_ships_to = [c.strip().upper() for c in raw_ships_to.split(",") if c.strip()]
         name = os.environ.get("SQUARESPACE_SHOP_NAME", "shop (squarespace)")
         self.shop = {"name": name, "vendor": name, "currency": currency}
         self._loaded = 0.0

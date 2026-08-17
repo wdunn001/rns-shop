@@ -14,6 +14,7 @@ support -- Medusa's publishable-key /store API doesn't return a usable
 image URL cheaply here, so items render with no photo. See squarespace.py
 for what a connector with image caching looks like."""
 import json
+import os
 import time
 import urllib.parse
 import urllib.request
@@ -33,6 +34,13 @@ class MedusaCatalog(CatalogSource):
         self.currency = (q.get("currency") or ["usd"])[0]
         self.shop = shop or {"name": "shop (medusa)", "currency":
                              self.currency.upper()}
+        # No ships_to source is fetched from Medusa's /store API here (M5,
+        # untested against a live store) -- same stance as squarespace.py:
+        # catalog.CatalogSource.ships_ok() is safe-by-default (undeclared =
+        # denied everywhere), so this stays unset unless MEDUSA_SHIPS_TO is
+        # explicitly configured, rather than silently defaulting worldwide.
+        self.default_ships_to = [c.strip().upper() for c in
+                                 os.environ.get("MEDUSA_SHIPS_TO", "").split(",") if c.strip()]
         self._loaded = 0.0
         self.load()
 
@@ -62,6 +70,7 @@ class MedusaCatalog(CatalogSource):
                 "kind": "physical",
                 "tags": [c.get("value", "") for c in (p.get("categories") or [])
                          if c.get("value")],
+                "ships_to": self.default_ships_to,
             }
         self.items = items
         self._loaded = time.time()

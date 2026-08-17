@@ -113,7 +113,7 @@ def item_page(item, shop, dest_hex):
 
 {desc}
 
-{_image_bits(item)[1]}`F{DIM}ships to: {', '.join(item.get('ships_to', ['worldwide'])).lower()}`f
+{_image_bits(item)[1]}`F{DIM}ships to: {', '.join(item.get('ships_to') or []).lower() or 'not configured yet -- contact the merchant'}`f
 
 `F{GOOD}┌─`f `!BUY IT`!
 `F{GOOD}│`f
