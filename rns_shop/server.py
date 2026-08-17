@@ -72,7 +72,7 @@ def _order_checks(items, shipping):
     if not _address_complete(shipping):
         return "address_required"
     for it in physical:
-        if not catalog_mod.Catalog.ships_ok(it, shipping.get("country")):
+        if not catalog_mod.CatalogSource.ships_ok(it, shipping.get("country")):
             return "not_shipped_to_country"
     return None
 
@@ -418,15 +418,16 @@ def main():
         identity = RNS.Identity()
         identity.to_file(args.identity)
 
-    if str(args.catalog).startswith("medusa://"):
-        from .medusa import MedusaCatalog
-        _catalog = MedusaCatalog(args.catalog)
-    else:
-        _catalog = catalog_mod.Catalog(args.catalog)
-    _store = Store(args.db)
-    _pages_out = args.pages_out
+    # _files_dir must exist BEFORE the catalog loads: a connector whose
+    # upstream serves images from an external URL (Squarespace, ...) caches
+    # them here on first load (see catalog.CatalogSource / squarespace.py --
+    # NomadNet clients can't fetch a clearnet CDN URL, so this is the only
+    # way a mesh client ever sees the photo).
     _files_dir = os.path.abspath(args.files)
     os.makedirs(_files_dir, exist_ok=True)
+    _catalog = catalog_mod.open_catalog(args.catalog, files_dir=_files_dir)
+    _store = Store(args.db)
+    _pages_out = args.pages_out
 
     dest = RNS.Destination(identity, RNS.Destination.IN, RNS.Destination.SINGLE,
                            protocol.APP_NAME, *protocol.ASPECTS)

@@ -1,22 +1,31 @@
 """Medusa v2 catalog connector (M5): read products from a MedusaJS /store API
-and present them through the same interface as the YAML Catalog, so shopd can
-run against a real commerce backend without a separate export step.
+and present them through the same CatalogSource interface as the YAML
+catalog (see catalog.py), so shopd can run against a real commerce backend
+without a separate export step.
 
 Usage: SHOP_CATALOG=medusa://<base_url>?key=<publishable_key>[&currency=usd]
 (the shop{} block then comes from SHOP_SHOP_* env or defaults).
 
 Read-only: shopd never writes to Medusa; orders live in shopd's DB (pushing
-them into Medusa/ERPNext is the merchant-side sync, a later connector)."""
+them into Medusa/ERPNext is the merchant-side sync, a later connector).
+
+KNOWN GAP (unchanged from before the CatalogSource refactor): no image
+support -- Medusa's publishable-key /store API doesn't return a usable
+image URL cheaply here, so items render with no photo. See squarespace.py
+for what a connector with image caching looks like."""
 import json
 import time
 import urllib.parse
 import urllib.request
 
+from .catalog import CatalogSource
 
-class MedusaCatalog:
+
+class MedusaCatalog(CatalogSource):
     REFRESH = 300  # seconds between catalog refreshes
 
-    def __init__(self, url, shop=None):
+    def __init__(self, url, shop=None, files_dir=None):
+        super().__init__(files_dir=files_dir)
         u = urllib.parse.urlparse(url)
         q = urllib.parse.parse_qs(u.query)
         self.base = f"http://{u.netloc}"
@@ -24,7 +33,6 @@ class MedusaCatalog:
         self.currency = (q.get("currency") or ["usd"])[0]
         self.shop = shop or {"name": "shop (medusa)", "currency":
                              self.currency.upper()}
-        self.items = {}
         self._loaded = 0.0
         self.load()
 
@@ -61,23 +69,3 @@ class MedusaCatalog:
 
     def changed(self):
         return time.time() - self._loaded > self.REFRESH
-
-    # same read interface as catalog.Catalog
-    def summary(self, it):
-        return {"sku": it["sku"], "title": it["title"], "price": it["price"],
-                "currency": self.shop.get("currency", "USD"),
-                "availability": it["availability"], "kind": it["kind"],
-                "tags": it["tags"]}
-
-    def list(self, tag=None):
-        out = [self.summary(i) for i in self.items.values()
-               if tag is None or tag in i["tags"]]
-        return sorted(out, key=lambda i: i["sku"])
-
-    def get(self, sku):
-        it = self.items.get(str(sku))
-        if not it:
-            return None
-        full = dict(self.summary(it))
-        full["description"] = it.get("description", "")
-        return full
