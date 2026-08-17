@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """MY ORDERS — NomadNet executable page: the buyer's order history, keyed on
-their proven identity. Digital goods they own are delivered right here."""
+their proven identity. Digital goods they own are delivered right here.
+Each order also gets a "reorder" action: a hidden text field prefilled with
+THAT order's id, submitted by name (bare-name enumerated link, no literal
+link-var) -- since order ids are only known at RUNTIME (unlike SKUs, they
+can't be baked into a per-order wrapper file at catalog-render time the way
+buy/<sku>.mu or cart/add/<sku>.mu are)."""
 import json
 import os
 import time
+import urllib.error
 import urllib.request
 
 try:                                    # Beacon-Analytics RUM page view (best-effort)
@@ -40,11 +46,48 @@ def api(path):
         return json.loads(r.read())
 
 
+def api_post(path, body):
+    req = urllib.request.Request(API + path, data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        try:
+            return json.loads(e.read())
+        except Exception:
+            return {"ok": False, "err": f"http {e.code}"}
+    except Exception as ex:
+        return {"ok": False, "err": str(ex)}
+
+
 try:
     orders = api(f"/orders?identity={identity}").get("orders", [])
 except Exception:
     print(f"`F{W}shop backend unreachable — try again in a moment`f")
     raise SystemExit(0)
+
+# Reorder: exactly one `field_reorder_<oid>` is set per click (the CONFIRM
+# link for each order only enumerates that order's own field), value ==
+# the order id it was prefilled with.
+reorder_msg = None
+for o in orders:
+    key = "field_reorder_" + o["order_id"]
+    if os.environ.get(key, "").strip() == o["order_id"]:
+        out = api_post("/cart/reorder", {"identity": identity, "order_id": o["order_id"]})
+        if out.get("ok"):
+            n = sum(e["qty"] for e in out.get("items", []))
+            skip = out.get("skipped", 0)
+            reorder_msg = (f"`F{G}Added order #{esc(o['order_id'])}'s items to your "
+                           f"cart`f  `F{D}({n} item(s) in cart now"
+                           + (f", {skip} no longer available" if skip else "") + f")`f  "
+                           f"`[→ view cart`:/page/cart.mu]")
+        else:
+            reorder_msg = f"`F{W}Couldn't reorder: {esc(out.get('err', 'unknown'))}`f"
+        break
+
+if reorder_msg:
+    print(reorder_msg + "\n")
 
 if not orders:
     print(f"`F{D}No orders yet.`f Go find something: `[catalog`:/page/index.mu]")
@@ -83,6 +126,8 @@ else:
                         print(f"`F{A}│`f  `!⬇ {esc(d['filename'])}`! "
                               f"`F{D}({d['bytes']} bytes — fetch with delivery.get "
                               f"over the shop service)`f")
-        print(f"`F{A}└─`f")
+        oid = esc(o["order_id"])
+        print(f"""`F{A}│`f  `B{BG}`<10|reorder_{oid}`{oid}>`b `!`F{A}`[↻ reorder`:/page/orders.mu`reorder_{oid}]`f`!
+`F{A}└─`f""")
 
-print(f"\n`[← back to the catalog`:/page/index.mu]")
+print(f"\n`[← back to the catalog`:/page/index.mu]  ·  `[my cart`:/page/cart.mu]")

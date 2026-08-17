@@ -305,6 +305,9 @@ class _LocalApiHandler(BaseHTTPRequestHandler):
         except Exception:
             return self._json(400, {"ok": False, "err": "bad_request"})
         if self.path == "/order":
+            # Single-item / explicit-items checkout (buy.mu) -- items passed
+            # directly, cart untouched. /cart/checkout below is the OTHER
+            # path: submit whatever's already in the stored cart.
             items = _items_valid(req.get("items"))
             if items is None:
                 return self._json(400, {"ok": False, "err": "bad_items"})
@@ -323,6 +326,61 @@ class _LocalApiHandler(BaseHTTPRequestHandler):
                 identity, shipping=json.dumps(addr) if addr else None,
                 pay_method=str(req.get("method", ""))[:32] or None)
             return self._json(200, {"ok": True, "profile": prof})
+        if self.path == "/cart/add":
+            sku = str(req.get("sku", ""))
+            if sku not in _catalog.items:
+                return self._json(404, {"ok": False, "err": "not_found"})
+            try:
+                qty = max(1, min(Store.MAX_CART_QTY, int(req.get("qty", 1))))
+            except (TypeError, ValueError):
+                return self._json(400, {"ok": False, "err": "bad_items"})
+            return self._json(200, {"ok": True, "items": _store.cart_add(identity, sku, qty)})
+        if self.path == "/cart/remove":
+            sku = str(req.get("sku", ""))
+            qty_raw = req.get("qty")
+            try:
+                qty = int(qty_raw) if qty_raw not in (None, "") else None
+            except (TypeError, ValueError):
+                return self._json(400, {"ok": False, "err": "bad_items"})
+            return self._json(200, {"ok": True, "items": _store.cart_remove(identity, sku, qty)})
+        if self.path == "/cart/set_qty":
+            sku = str(req.get("sku", ""))
+            try:
+                qty = int(req.get("qty", 0))
+            except (TypeError, ValueError):
+                return self._json(400, {"ok": False, "err": "bad_items"})
+            if qty > 0 and sku not in _catalog.items:
+                return self._json(404, {"ok": False, "err": "not_found"})
+            return self._json(200, {"ok": True, "items": _store.cart_set_qty(identity, sku, qty)})
+        if self.path == "/cart/reorder":
+            o = _store.order_get(identity, str(req.get("order_id", "")))
+            if not o:
+                return self._json(404, {"ok": False, "err": "not_found"})
+            skipped = 0
+            for e in o["items"]:
+                if e["sku"] in _catalog.items:
+                    _store.cart_add(identity, e["sku"], e["qty"])
+                else:
+                    skipped += 1
+            return self._json(200, {"ok": True, "items": _store.cart_get(identity),
+                                    "skipped": skipped})
+        if self.path == "/cart/checkout":
+            # Submit whatever's currently in the stored cart -- the
+            # multi-item counterpart to /order's single-item/explicit-items
+            # flow. Same _submit_order path either way (address checks,
+            # shipping.quote(), payment rails all apply identically).
+            items = _items_valid(_store.cart_get(identity))
+            if items is None:
+                return self._json(400, {"ok": False, "err": "empty_cart"})
+            out = _submit_order(identity, items, req.get("shipping"),
+                                str(req.get("note", ""))[:MAX_TEXT],
+                                method=req.get("method"))
+            if out.get("ok") and req.get("save_profile"):
+                addr = _clean_address(req.get("shipping"))
+                _store.profile_set(identity,
+                                   shipping=json.dumps(addr) if addr else None,
+                                   pay_method=req.get("method"))
+            return self._json(200 if out.get("ok") else 400, out)
         return self._json(404, {"ok": False, "err": "not_found"})
 
     def do_GET(self):
@@ -343,6 +401,27 @@ class _LocalApiHandler(BaseHTTPRequestHandler):
         identity = q.get("identity", "")
         if len(identity) != 32:
             return self._json(400, {"ok": False, "err": "bad_identity"})
+        if u.path == "/cart":
+            items = _store.cart_get(identity)
+            # Enrich with catalog details (title/price/currency/availability)
+            # so cart.mu can render a real line-item list from one call --
+            # the stored cart itself is only {sku, qty}.
+            lines, subtotal = [], 0.0
+            for e in items:
+                it = _catalog.get(e["sku"])
+                if not it:
+                    continue   # discontinued since it was added -- drop silently from the view
+                line_total = round(it["price"] * e["qty"], 2)
+                subtotal += line_total
+                lines.append({**e, "title": it["title"], "price": it["price"],
+                             "currency": it.get("currency", "USD"),
+                             "availability": it["availability"], "kind": it["kind"],
+                             "line_total": line_total})
+            fee = shipping_mod.quote(_catalog, items, None)   # no address yet -- pre-checkout estimate
+            return self._json(200, {"ok": True, "items": lines,
+                                    "subtotal": round(subtotal, 2),
+                                    "shipping_fee_estimate": fee,
+                                    "currency": _catalog.shop.get("currency", "USD")})
         if u.path == "/profile":
             prof = _store.profile_get(identity)
             try:

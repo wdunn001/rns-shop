@@ -117,10 +117,10 @@ def item_page(item, shop, dest_hex):
 
 `F{GOOD}┌─`f `!BUY IT`!
 `F{GOOD}│`f
-`F{GOOD}│`f  quantity `B{BAND_BG}`<3|qty`1>`b   `!`[⚡ BUY NOW`:/page/buy/{item['sku']}.mu`qty]`!
+`F{GOOD}│`f  quantity `B{BAND_BG}`<3|qty`1>`b   `!`[⚡ BUY NOW`:/page/buy/{item['sku']}.mu`qty]`!   `!`F{ACCENT}`[+ ADD TO CART`:/page/cart/add/{item['sku']}.mu`qty]`f`!
 `F{GOOD}│`f
 {digital_note}`F{GOOD}│`f  `F{DIM}one click — your RNS identity is the account. Confirmation + receipt by LXMF.`f
-`F{GOOD}└─`f `F{DIM}new here?`f `[how buying works`:/page/docs/index.mu]  ·  `[my orders`:/page/orders.mu]
+`F{GOOD}└─`f `F{DIM}new here?`f `[how buying works`:/page/docs/index.mu]  ·  `[my orders`:/page/orders.mu]  ·  `[my cart`:/page/cart.mu]
 
 `[← back to the catalog`:/page/index.mu]
 """
@@ -143,10 +143,10 @@ def index_page(catalog, dest_hex):
 
 >>How it works
 
-`F{ACCENT}┌─`f  1. pick an item · set a quantity · hit `!BUY NOW`!
+`F{ACCENT}┌─`f  1. pick items · hit `!BUY NOW`! for one, or `!ADD TO CART`! for several
 `F{ACCENT}│`f   2. your RNS identity IS your account — nothing to register
 `F{ACCENT}│`f   3. confirmation + receipt arrive by LXMF
-`F{ACCENT}└─`f  4. track everything on `[my orders`:/page/orders.mu] `F{DIM}·`f `[my account`:/page/account.mu]
+`F{ACCENT}└─`f  4. track everything on `[my orders`:/page/orders.mu] `F{DIM}·`f `[my cart`:/page/cart.mu] `F{DIM}·`f `[my account`:/page/account.mu]
 
 `F{DIM}{_esc(shop.get('invoice_note', 'You will receive an LXMF invoice after ordering.'))}`f
 
@@ -192,11 +192,12 @@ def write_pages(catalog, dest_hex, out_dir):
         with open(p, "w", encoding="utf-8") as fh:
             fh.write(item_page(item, catalog.shop, dest_hex))
         written += 1
-    # executable checkout pages (buy.mu / orders.mu): copied verbatim, +x so
-    # the NomadNet node runs them per-request (that's how BUY NOW works)
+    # executable checkout pages: copied verbatim, +x so the NomadNet node
+    # runs them per-request (that's how BUY NOW / cart / orders work)
     src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "pages_exec")
-    for name in ("buy.mu", "orders.mu", "account.mu", "index.mu"):
+    for name in ("buy.mu", "orders.mu", "account.mu", "index.mu",
+                "cart.mu", "cart_add.mu", "cart_remove.mu"):
         src = os.path.join(src_dir, name)
         if os.path.isfile(src):
             dst = os.path.join(out_dir, name)
@@ -204,21 +205,54 @@ def write_pages(catalog, dest_hex, out_dir):
                 d.write(s.read())
             os.chmod(dst, 0o755)
             written += 1
+
+    def _wrapper(target, depth=1, **env):
+        """A tiny per-sku exec page that bakes `env` in via os.environ before
+        runpy-ing the shared `target` script (which lives directly in
+        out_dir) -- the "bake the argument into the file path" trick that
+        keeps every click a bare-link with no literal link-var (not every
+        micron client supports those). `depth` = how many directories below
+        out_dir this wrapper itself lives in (buy/<sku>.mu = 1,
+        cart/add/<sku>.mu = 2, ...) -- how many '..' hops get back to
+        out_dir/target at RUNTIME, resolved relative to the wrapper's own
+        __file__ (the container actually serving pages, NOT this process --
+        so an absolute path baked here would be wrong if the two containers
+        mount the shared pages volume at different paths)."""
+        lines = ["#!/usr/bin/env python3", "import os, runpy"]
+        for k, v in env.items():
+            lines.append(f"os.environ.setdefault({k!r}, {v!r})")
+        ups = ", ".join(["'..'"] * depth)
+        lines.append("runpy.run_path(os.path.join(os.path.dirname(os.path.abspath(__file__)),")
+        lines.append(f"               {ups}, {target!r}))")
+        return "\n".join(lines) + "\n"
+
     # per-item buy wrappers: /page/buy/<SKU>.mu bakes the SKU in, so BUY NOW
     # links only submit the bare `qty` field — the one link-field form every
     # micron client supports (literal name=value entries are not universal)
     buy_dir = os.path.join(out_dir, "buy")
     os.makedirs(buy_dir, exist_ok=True)
     for sku in catalog.items:
-        wrapper = (
-            "#!/usr/bin/env python3\n"
-            "import os, runpy\n"
-            f"os.environ.setdefault('var_sku', {sku!r})\n"
-            "runpy.run_path(os.path.join(os.path.dirname(os.path.abspath(__file__)),\n"
-            "               '..', 'buy.mu'))\n")
         p = os.path.join(buy_dir, f"{sku}.mu")
         with open(p, "w", encoding="utf-8") as fh:
-            fh.write(wrapper)
+            fh.write(_wrapper("buy.mu", depth=1, var_sku=sku))
         os.chmod(p, 0o755)
         written += 1
+
+    # per-item cart wrappers: add-to-cart (+ / ADD TO CART button), decrement
+    # (−), and full removal (✕) -- same trick, three two-level-deep dirs
+    # (cart/add/<sku>.mu etc, depth=2) so each click is a bare link to a
+    # pre-baked file, never a literal var.
+    for subdir, target, extra_env in (
+        ("cart/add", "cart_add.mu", {}),
+        ("cart/dec", "cart_remove.mu", {"var_mode": "dec"}),
+        ("cart/remove", "cart_remove.mu", {"var_mode": "all"}),
+    ):
+        d = os.path.join(out_dir, subdir)
+        os.makedirs(d, exist_ok=True)
+        for sku in catalog.items:
+            p = os.path.join(d, f"{sku}.mu")
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.write(_wrapper(target, depth=2, var_sku=sku, **extra_env))
+            os.chmod(p, 0o755)
+            written += 1
     return written

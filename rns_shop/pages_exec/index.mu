@@ -25,14 +25,18 @@ if identity and len(identity) == 32:
             prof = json.loads(r.read()).get("profile", {})
         first = (prof.get("shipping", {}).get("name") or "").split(" ")[0]
         first = first.replace("`", "'").strip()
-        if first:
-            greeting = (f"`c`F{A}hi, `!{first}`! — welcome back`f   "
-                        f"`F{D}·`f  `[my orders`:/page/orders.mu]  "
-                        f"`F{D}·`f  `[my account`:/page/account.mu]\n`a\n")
-        else:
-            greeting = (f"`c`F{D}welcome back`f   ·  "
-                        f"`[my orders`:/page/orders.mu]  ·  "
-                        f"`[my account`:/page/account.mu]\n`a\n")
+        cart_n = 0
+        try:
+            with urllib.request.urlopen(
+                    f"{API}/cart?identity={identity}", timeout=5) as r:
+                cart_n = sum(e["qty"] for e in json.loads(r.read()).get("items", []))
+        except Exception:
+            pass
+        cart_link = (f"`[🛒 my cart ({cart_n})`:/page/cart.mu]" if cart_n
+                    else "`[my cart`:/page/cart.mu]")
+        who = f"hi, `!{first}`! — welcome back" if first else "welcome back"
+        greeting = (f"`c`F{A}{who}`f   `F{D}·`f  `[my orders`:/page/orders.mu]  "
+                    f"`F{D}·`f  {cart_link}  `F{D}·`f  `[my account`:/page/account.mu]\n`a\n")
     except Exception:
         pass
 
