@@ -34,14 +34,22 @@ def load_doc(path):
 
 
 def save_doc(path, doc):
-    """Atomic write (tmp + rename) -- catalog.yaml is a live, hot-reloaded
-    config (shopd's _health_loop polls its mtime every 60s); a half-written
-    file read mid-write would either fail to parse or, worse, parse as a
-    truncated-but-valid partial catalog."""
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        yaml.safe_dump(doc, fh, sort_keys=False, allow_unicode=True)
-    os.replace(tmp, path)
+    """In-place write, NOT the usual tmp-file + os.replace() atomic-rename
+    pattern. Found live (2026-08-17): catalog.yaml is normally a single-
+    file Docker bind mount (docker-compose.yml's `./catalog.yaml:/data/
+    catalog.yaml`), and renaming a new inode onto a bind-mount target fails
+    on Linux with `[Errno 16] Device or resource busy` -- the mount holds a
+    reference to that specific path, so os.replace() can create the tmp
+    file fine but can never swap it in. Fixed by rendering the FULL YAML
+    text first (a bad doc fails here, before the target file is touched at
+    all) and only then overwriting the target's existing inode in place --
+    which the bind mount tolerates fine, it just can't be REPLACED. Tradeoff:
+    a process crash mid-write could leave a truncated file, same exposure
+    catalog.yaml already has from any direct SSH edit (it was never claiming
+    fsync-grade durability, just "don't ship a doc that fails to parse")."""
+    text = yaml.safe_dump(doc, sort_keys=False, allow_unicode=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
 
 
 def list_items(doc):
