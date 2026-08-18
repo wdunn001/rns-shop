@@ -17,6 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import RNS
 from meshapi import service as meshapi_service
 
+from . import admin_web
 from . import catalog as catalog_mod
 from . import manifest, payments, protocol, providers, render
 from . import shipping as shipping_mod  # aliased -- _submit_order's own
@@ -614,6 +615,19 @@ def main():
             f"{[m['method'] for m in _rails.methods()]}")
 
     _start_local_api(int(os.environ.get("SHOP_LOCAL_API", "8219")))
+
+    # Merchant admin portal -- PRIVATE, binds 0.0.0.0 unlike the loopback-
+    # only local API above, because it's meant to be reached through the
+    # Caddy edge (Authentik-gated vhost), not called by same-host page
+    # scripts. See admin_web.py's module docstring for the full trust
+    # model -- this process implements no auth itself, Caddy's forward-auth
+    # is the only gate, so this MUST NEVER get a public vhost or a raw
+    # port-forward (see no-raw-public-port-exposure memory; the buyer-
+    # facing demo payment link already needed relearning that lesson once).
+    admin_port = int(os.environ.get("SHOP_ADMIN_PORT", "8222"))
+    admin_web.start(_store, lambda: _catalog, lambda: _rails, admin_port)
+    RNS.log(f"[rns-shop] merchant admin portal on :{admin_port} "
+            f"(private -- put this behind Authentik, never a public vhost)")
 
     threading.Thread(target=_health_loop, args=(dest,), daemon=True).start()
     srv = ThreadingHTTPServer(("0.0.0.0", args.healthz_port), _HealthHandler)
