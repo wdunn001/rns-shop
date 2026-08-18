@@ -24,6 +24,11 @@ CREATE TABLE IF NOT EXISTS profiles(
   pay_method TEXT, updated REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS lxmf_map(
   identity TEXT PRIMARY KEY, dest TEXT NOT NULL, updated REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS messages(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, order_id TEXT NOT NULL,
+  title TEXT, body TEXT NOT NULL, ok INTEGER NOT NULL, reason TEXT,
+  created REAL NOT NULL);
+CREATE INDEX IF NOT EXISTS messages_order ON messages(order_id);
 """
 
 
@@ -299,6 +304,23 @@ class Store:
                  vals["pay_method"], time.time()))
             self._db.commit()
         return vals
+
+    # ---- merchant -> buyer messages (admin portal's "message customer") ----
+    def message_log(self, order_id, title, body, ok, reason=None):
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO messages(order_id,title,body,ok,reason,created) "
+                "VALUES(?,?,?,?,?,?)",
+                (order_id, title, body, 1 if ok else 0, reason, time.time()))
+            self._db.commit()
+
+    def messages_for_order(self, order_id):
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT title, body, ok, reason, created FROM messages "
+                "WHERE order_id=? ORDER BY created DESC", (order_id,)).fetchall()
+        return [{"title": r[0], "body": r[1], "ok": bool(r[2]), "reason": r[3],
+                "created": r[4]} for r in rows]
 
     # ---- entitlements ----
     def entitle(self, identity, sku, expires=None):

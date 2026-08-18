@@ -43,6 +43,7 @@ _pages_out = None
 _files_dir = None
 _xmr = None
 _rails = None
+_lxmf_worker = None
 
 
 def _clean_address(raw):
@@ -497,12 +498,24 @@ def on_request(path, data, request_id, link_id, remote_identity, requested_at):
 
 
 def _health_loop(dest):
+    images_dir = os.environ.get("SHOP_IMAGES")
+    node_files_dir = os.environ.get("SHOP_NODE_FILES")
     while True:
         try:
             if _catalog.changed():
                 _catalog.load()
                 n = render.write_pages(_catalog, _state["dest"], _pages_out)
-                RNS.log(f"[rns-shop] catalog changed — re-rendered {n} pages")
+                # Sync product images on EVERY reload, not just at startup --
+                # otherwise an image dropped into SHOP_IMAGES after boot (by
+                # hand, or via the admin portal's catalog editor) never
+                # actually reaches the node's /file/ volume, even though the
+                # re-rendered pages/MeshData now reference it. Found while
+                # wiring the editor's image upload -- this was a pre-
+                # existing gap (sync_images only ran once, before this loop
+                # even started).
+                ni = render.sync_images(_catalog, images_dir, node_files_dir)
+                RNS.log(f"[rns-shop] catalog changed — re-rendered {n} pages "
+                        f"(+{ni} product images)")
             _state["ok"] = bool(_catalog.items)
             _state["items"] = len(_catalog.items)
         except Exception as e:
@@ -599,10 +612,14 @@ def main():
     _state["ok"] = bool(_catalog.items)
     _state["items"] = len(_catalog.items)
 
-    # LXMF worker: confirmations, receipts, digital entitlement (M2)
+    # LXMF worker: confirmations, receipts, digital entitlement (M2).
+    # Kept as a global so the admin portal can reuse it for merchant->buyer
+    # messages (send_message) instead of standing up a second LXMF router.
+    global _lxmf_worker
     from .lxmf_worker import Worker
-    Worker(_store, _catalog, os.path.dirname(os.path.abspath(args.identity)),
-           _catalog.shop.get("name", "shop")).start()
+    _lxmf_worker = Worker(_store, _catalog, os.path.dirname(os.path.abspath(args.identity)),
+                          _catalog.shop.get("name", "shop"))
+    _lxmf_worker.start()
 
     # payment rails: generic provider registry (invoice/link/xmr/…)
     global _rails
@@ -625,7 +642,9 @@ def main():
     # port-forward (see no-raw-public-port-exposure memory; the buyer-
     # facing demo payment link already needed relearning that lesson once).
     admin_port = int(os.environ.get("SHOP_ADMIN_PORT", "8222"))
-    admin_web.start(_store, lambda: _catalog, lambda: _rails, admin_port)
+    admin_web.start(_store, lambda: _catalog, lambda: _rails, admin_port,
+                    worker_ref=lambda: _lxmf_worker,
+                    images_dir=os.environ.get("SHOP_IMAGES"))
     RNS.log(f"[rns-shop] merchant admin portal on :{admin_port} "
             f"(private -- put this behind Authentik, never a public vhost)")
 
