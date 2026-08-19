@@ -65,7 +65,7 @@ class Worker:
                     time.sleep(0.5)
             identity = RNS.Identity.recall(dh)
             if identity is None:
-                RNS.log(f"[rns-shop] LXMF dest {dest_hash_hex[:8]}… unknown "
+                RNS.log(f"[rns-shop] LXMF dest {dest_hash_hex[:8]}... unknown "
                         f"(no announce seen yet) — will retry", RNS.LOG_DEBUG)
                 return False
             dest = RNS.Destination(identity, RNS.Destination.OUT,
@@ -120,7 +120,7 @@ class Worker:
         found = self.store.lxmf_lookup(o["identity"])
         if found:
             self.store.order_set_lxmf(o["order_id"], found)
-            RNS.log(f"[rns-shop] learned inbox for {o['identity'][:8]}… "
+            RNS.log(f"[rns-shop] learned inbox for {o['identity'][:8]}... "
                     f"via announce", RNS.LOG_DEBUG)
         return found
 

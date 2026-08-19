@@ -136,7 +136,7 @@ def _dashboard_html(store, catalog, rails):
 <td><a href="/order?id={_esc(o['order_id'])}">#{_esc(o['order_id'])}</a></td>
 <td>{_pill(o['status'])}</td>
 <td>{time.strftime('%Y-%m-%d %H:%M', time.gmtime(o['created']))}</td>
-<td>{_esc(o['identity'][:12])}…</td>
+<td>{_esc(o['identity'][:12])}...</td>
 <td>{_esc(', '.join(f"{e['qty']}x {e['sku']}" for e in o['items']))}</td>
 <td style="text-align:right">{o['total']:.2f} {_esc(o['currency'])}</td>
 </tr>""" for o in orders[:60])
@@ -234,7 +234,7 @@ you know to try again later, same as the automated flow's own retry window.</p>
 <div class=panel>
 <form method=POST action="/order/{_esc(order_id)}/message">
 <label>subject <input name=title value="{_esc(catalog.shop.get('name', 'shop'))}: order {_esc(order_id)}" style="width:60%"></label><br><br>
-<textarea name=body rows=4 style="width:100%" placeholder="Message to the buyer about this order…" required></textarea><br><br>
+<textarea name=body rows=4 style="width:100%" placeholder="Message to the buyer about this order..." required></textarea><br><br>
 <button class=good type=submit>send message</button>
 </form>
 </div>

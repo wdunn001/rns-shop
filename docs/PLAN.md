@@ -27,12 +27,12 @@ their own node and carries their own heat.
 
 ## 2 · The two contracts
 
-- **MeshData `product` type** (✅ shipped, `wdunn001/meshdata`): commerce fields mirroring
+- **MeshData `product` type** (shipped, `wdunn001/meshdata`): commerce fields mirroring
   schema.org Product/Offer, price, currency, availability, sku, vendor, and `shop` (the
   MeshAPI destination where buy ops live, the doorway from a search result to a seller).
   SPEC §7 adds consumer guidance: schema bonus caps, date sanity, type cross-check,
   canonical dedupe.
-- **MeshAPI `rnshop` service** (✅ shipped): catalog.list/get · cart.* · order.submit/status ·
+- **MeshAPI `rnshop` service** (shipped): catalog.list/get · cart.* · order.submit/status ·
   entitlement.check · delivery.get · pay.link/pay.xmr · profile.get/set, self-documenting
   via `__manifest__`.
 
@@ -40,12 +40,12 @@ their own node and carries their own heat.
 
 ```
 catalog source (yaml | medusa:// | squarespace://)
-      → shopd, MeshAPI service: carts, orders, entitlements, payments, profiles
-      → render, micron storefront w/ MeshData product records (+ exec checkout pages)
-      → ⛺ NomadNet node (own identity)  ← buyers (NomadNet / MeshChat)
-      → LXMF worker, invoices, receipts, merchant messages; inbox auto-discovery
-      → Beacon indexes every listing (freshness + shopping-intent ranking)
-      → admin portal (Authentik-gated web), orders, revenue, messaging, catalog editor
+      -> shopd, MeshAPI service: carts, orders, entitlements, payments, profiles
+      -> render, micron storefront w/ MeshData product records (+ exec checkout pages)
+      -> ⛺ NomadNet node (own identity)  <- buyers (NomadNet / MeshChat)
+      -> LXMF worker, invoices, receipts, merchant messages; inbox auto-discovery
+      -> Beacon indexes every listing (freshness + shopping-intent ranking)
+      -> admin portal (Authentik-gated web), orders, revenue, messaging, catalog editor
 ```
 
 Three separable layers: **catalog** (the schema is the API), **storefront** (static browse +
@@ -53,23 +53,23 @@ exec checkout), **discovery** (Beacon, zero shop-side code).
 
 ## 4 · Payment rails (provider interface, one class + one registry line per rail)
 
-- **Invoice** (✅), LXMF invoice, merchant marks paid; worker entitles + receipts.
-- **Link / hybrid web checkout** (✅ mechanism + mock processor proven end-to-end), any
+- **Invoice** (shipped), LXMF invoice, merchant marks paid; worker entitles + receipts.
+- **Link / hybrid web checkout** (mechanism + mock processor proven end-to-end), any
   processor via URL template; webhook bridge flips orders paid. Rule learned: buyer-visible
   URLs must be public, never internal addresses.
-- **Monero watch-only** (✅ code, dormant), per-order subaddresses, watcher confirms; no
+- **Monero watch-only** (code, dormant), per-order subaddresses, watcher confirms; no
   spend keys near the mesh, ever.
 
 ## 5 · Milestones, final scorecard
 
 | Milestone | Status |
 |---|---|
-| M0 MeshData product spec | ✅ shipped |
-| M1 Catalog on the mesh (Beacon-visible) | ✅ shipped |
-| M2 Orders end-to-end + LXMF | ✅ shipped (first order ever: `7b66ec61`, $5 zine) |
-| M3 Digital delivery + link rail | ✅ shipped (mock processor completes the full loop) |
-| M4 XMR + entitlements | ✅ code shipped, awaits a view-only wallet |
-| M5 Connectors + merchant suite | ✅ Squarespace connector, shipping estimates, carts, admin portal, catalog editor, buyer messaging |
+| M0 MeshData product spec | shipped |
+| M1 Catalog on the mesh (Beacon-visible) | shipped |
+| M2 Orders end-to-end + LXMF | shipped (first order ever: `7b66ec61`, $5 zine) |
+| M3 Digital delivery + link rail | shipped (mock processor completes the full loop) |
+| M4 XMR + entitlements | code shipped, awaits a view-only wallet |
+| M5 Connectors + merchant suite | Squarespace connector, shipping estimates, carts, admin portal, catalog editor, buyer messaging |
 
 Beyond the plan: buyer profiles + greeted storefront, fail-closed ships-to, cart UI,
 region-aware everything, four micron client-compat laws learned in live fire (no literal

@@ -223,7 +223,7 @@ def _dispatch(req, identity_hex):
             return protocol.err("no_file", req)
         with open(fp, "rb") as fh:
             data = fh.read()
-        RNS.log(f"[rns-shop] DELIVERY {sku} -> {identity_hex[:8]}… "
+        RNS.log(f"[rns-shop] DELIVERY {sku} -> {identity_hex[:8]}... "
                 f"({len(data)} bytes)", RNS.LOG_NOTICE)
         return protocol.ok({"filename": os.path.basename(fp), "data": data}, req)
     if op in (protocol.OP_PAY_LINK, protocol.OP_PAY_XMR):
@@ -270,7 +270,7 @@ def _submit_order(identity_hex, items, shipping=None, note="", lxmf=None,
     joined = "\n".join(f"[{o['label']}] {o['text']}" for o in options)
     _store.order_set_payment(oid, options[0]["method"] if options else "invoice",
                              joined)
-    RNS.log(f"[rns-shop] ORDER {oid} from {identity_hex[:8]}… subtotal {subtotal} "
+    RNS.log(f"[rns-shop] ORDER {oid} from {identity_hex[:8]}... subtotal {subtotal} "
             f"+ shipping {fee or 0.0} = total {total}", RNS.LOG_NOTICE)
     return {"ok": True, "order_id": oid, "subtotal": subtotal,
             "shipping_fee": fee, "total": total,
@@ -621,7 +621,7 @@ def main():
                           _catalog.shop.get("name", "shop"))
     _lxmf_worker.start()
 
-    # payment rails: generic provider registry (invoice/link/xmr/…)
+    # payment rails: generic provider registry (invoice/link/xmr/...)
     global _rails
     xmr_rpc = os.environ.get("SHOP_XMR_RPC")
     if xmr_rpc:

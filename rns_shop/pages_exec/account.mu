@@ -26,7 +26,7 @@ print(f"`c\n`B{BG}`F{A}  `!MY ACCOUNT`!  `f`b\n`a")
 if not identity:
     print(f"`F{W}Your client didn't identify on this link`f — identify to this "
           f"node and reload.")
-    print(f"\n`[← catalog`:/page/index.mu]")
+    print(f"\n`[<- catalog`:/page/index.mu]")
     raise SystemExit(0)
 
 try:
@@ -61,4 +61,4 @@ print(f"""
 `F{D}What we store: this identity hash, the shipping details above, and your
 orders. Nothing else — no passwords exist to leak.`f
 
-`[← catalog`:/page/index.mu]  ·  `[my orders`:/page/orders.mu]""")
+`[<- catalog`:/page/index.mu]  ·  `[my orders`:/page/orders.mu]""")

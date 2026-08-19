@@ -27,7 +27,7 @@ def main():
     if args.cmd == "list":
         for o in st.orders_all():
             print(f"{o['order_id']}  {o['status']:<16} {o['total']:>8.2f} "
-                  f"{o['currency']}  {o['identity'][:12]}…  "
+                  f"{o['currency']}  {o['identity'][:12]}...  "
                   f"{','.join(e['sku'] for e in o['items'])}")
     elif args.cmd == "show":
         print(json.dumps(st.order_admin_get(args.order_id), indent=2))
@@ -36,7 +36,7 @@ def main():
         print(f"{args.order_id} -> paid (worker will entitle + receipt)")
     elif args.cmd == "entitle":
         st.entitle(args.identity, args.sku)
-        print(f"entitled {args.identity[:12]}… for {args.sku}")
+        print(f"entitled {args.identity[:12]}... for {args.sku}")
 
 
 if __name__ == "__main__":

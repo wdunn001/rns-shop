@@ -32,7 +32,7 @@ if identity and len(identity) == 32:
                 cart_n = sum(e["qty"] for e in json.loads(r.read()).get("items", []))
         except Exception:
             pass
-        cart_link = (f"`[🛒 my cart ({cart_n})`:/page/cart.mu]" if cart_n
+        cart_link = (f"`[my cart ({cart_n})`:/page/cart.mu]" if cart_n
                     else "`[my cart`:/page/cart.mu]")
         who = f"hi, `!{first}`! — welcome back" if first else "welcome back"
         greeting = (f"`c`F{A}{who}`f   `F{D}·`f  `[my orders`:/page/orders.mu]  "

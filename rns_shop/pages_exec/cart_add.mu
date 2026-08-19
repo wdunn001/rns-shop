@@ -29,7 +29,7 @@ print(f"`c\n`B{BG}`F{A}  `!ADD TO CART`!  `f`b\n`a")
 if not identity:
     print(f"`F{W}Your client didn't identify on this link`f — identify to this "
           f"node and reload, then try again.")
-    print(f"\n`[← catalog`:/page/index.mu]")
+    print(f"\n`[<- catalog`:/page/index.mu]")
     raise SystemExit(0)
 
 try:
@@ -48,9 +48,9 @@ except Exception as ex:
 
 if out.get("ok"):
     n = sum(e["qty"] for e in out.get("items", []))
-    print(f"`F{G}Added {qty}× {esc(sku)} to your cart.`f  "
+    print(f"`F{G}Added {qty}x {esc(sku)} to your cart.`f  "
           f"`F{D}({n} item(s) total in cart)`f")
 else:
     print(f"`F{W}Couldn't add to cart: {esc(out.get('err', 'unknown'))}`f")
 
-print(f"\n`[← keep shopping`:/page/index.mu]  ·  `[view cart`:/page/cart.mu]")
+print(f"\n`[<- keep shopping`:/page/index.mu]  ·  `[view cart`:/page/cart.mu]")

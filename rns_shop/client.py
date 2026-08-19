@@ -143,7 +143,7 @@ def _inbox(args):
     router.register_delivery_callback(on_msg)
     router.announce(dest.hash)
     print(f"inbox open as {RNS.hexrep(dest.hash, delimit=False)} — waiting "
-          f"{int(args.timeout)}s for messages…")
+          f"{int(args.timeout)}s for messages...")
     import time as _t
     _t.sleep(args.timeout)
     print(f"({len(got)} message(s) received)")

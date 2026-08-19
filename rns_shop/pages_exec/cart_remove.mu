@@ -25,7 +25,7 @@ print(f"`c\n`B{BG}`F{A}  `!CART`!  `f`b\n`a")
 if not identity:
     print(f"`F{W}Your client didn't identify on this link`f — identify to this "
           f"node and reload, then try again.")
-    print(f"\n`[← cart`:/page/cart.mu]")
+    print(f"\n`[<- cart`:/page/cart.mu]")
     raise SystemExit(0)
 
 body = {"identity": identity, "sku": sku}
@@ -53,4 +53,4 @@ if out.get("ok"):
 else:
     print(f"`F{W}Couldn't update your cart: {esc(out.get('err', 'unknown'))}`f")
 
-print(f"\n`[← back to cart`:/page/cart.mu]")
+print(f"\n`[<- back to cart`:/page/cart.mu]")

@@ -37,7 +37,7 @@ print(f"""`c
 if not identity:
     print(f"""`F{W}Your client didn't identify on this link`f — identify to this
 node and reload; your RNS identity is your account.""")
-    print(f"\n`[← back to the catalog`:/page/index.mu]")
+    print(f"\n`[<- back to the catalog`:/page/index.mu]")
     raise SystemExit(0)
 
 
@@ -81,7 +81,7 @@ for o in orders:
             reorder_msg = (f"`F{G}Added order #{esc(o['order_id'])}'s items to your "
                            f"cart`f  `F{D}({n} item(s) in cart now"
                            + (f", {skip} no longer available" if skip else "") + f")`f  "
-                           f"`[→ view cart`:/page/cart.mu]")
+                           f"`[-> view cart`:/page/cart.mu]")
         else:
             reorder_msg = f"`F{W}Couldn't reorder: {esc(out.get('err', 'unknown'))}`f"
         break
@@ -120,14 +120,14 @@ else:
                         body = "\n".join(
                             f"`F{A}│`f  `F{D}{esc(l)}`f"
                             for l in d["text"].splitlines()[:20])
-                        print(f"`F{A}│`f  `!⬇ {esc(d['filename'])}`! "
+                        print(f"`F{A}│`f  `!{esc(d['filename'])}`! "
                               f"`F{D}({d['bytes']} bytes — delivered below)`f\n{body}")
                     else:
-                        print(f"`F{A}│`f  `!⬇ {esc(d['filename'])}`! "
+                        print(f"`F{A}│`f  `!{esc(d['filename'])}`! "
                               f"`F{D}({d['bytes']} bytes — fetch with delivery.get "
                               f"over the shop service)`f")
         oid = esc(o["order_id"])
-        print(f"""`F{A}│`f  `B{BG}`<10|reorder_{oid}`{oid}>`b `!`F{A}`[↻ reorder`:/page/orders.mu`reorder_{oid}]`f`!
+        print(f"""`F{A}│`f  `B{BG}`<10|reorder_{oid}`{oid}>`b `!`F{A}`[reorder`:/page/orders.mu`reorder_{oid}]`f`!
 `F{A}└─`f""")
 
-print(f"\n`[← back to the catalog`:/page/index.mu]  ·  `[my cart`:/page/cart.mu]")
+print(f"\n`[<- back to the catalog`:/page/index.mu]  ·  `[my cart`:/page/cart.mu]")

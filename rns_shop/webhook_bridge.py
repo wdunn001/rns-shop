@@ -76,10 +76,10 @@ def main():
                 o = _order(m.group(1))
                 if not o:
                     return self._html(404, "<h1>Unknown order</h1>")
-                items = ", ".join(f"{e['qty']}× {html.escape(e['sku'])}"
+                items = ", ".join(f"{e['qty']}x {html.escape(e['sku'])}"
                                   for e in o["items"])
                 if o["status"] in ("paid", "fulfilled"):
-                    return self._html(200, f"<h1>Already paid ✓</h1>"
+                    return self._html(200, f"<h1>Already paid</h1>"
                                       f"<p class=dim>order <code>{o['order_id']}</code></p>")
                 return self._html(200, f"""
 <h1>Pay for order <code>{o['order_id']}</code></h1>
@@ -98,7 +98,7 @@ the order settles, and your receipt + goods travel back over the mesh.</p>""")
                     return self._html(404, "<h1>Unknown order</h1>")
                 store.order_set_status(o["order_id"], "paid")
                 return self._html(200, f"""
-<h1>Payment complete ✓</h1><div class=amt>{o['total']:.2f} {html.escape(o['currency'])}</div>
+<h1>Payment complete</h1><div class=amt>{o['total']:.2f} {html.escape(o['currency'])}</div>
 <p class=dim>Order <code>{o['order_id']}</code> is settled. Back on the mesh:
 your LXMF receipt is on its way, digital goods are unlocked on
 <b>my orders</b>. You can close this tab.</p>""")

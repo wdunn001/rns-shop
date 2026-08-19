@@ -40,7 +40,7 @@ def hdr(t="CHECKOUT"):
 
 
 def foot():
-    print(f"\n`[← catalog`:/page/index.mu]  ·  `[my orders`:/page/orders.mu]")
+    print(f"\n`[<- catalog`:/page/index.mu]  ·  `[my orders`:/page/orders.mu]")
 
 
 def api_get(path):
@@ -109,12 +109,12 @@ if confirmed:
         opts = out.get("payments") or ([out["payment"]] if out.get("payment") else [])
         pay_lines = []
         for o in opts:
-            pay_lines.append(f"`F{G}│`f  `F{A}◆ {esc(o.get('label', o.get('method', '')))}`f")
+            pay_lines.append(f"`F{G}│`f  `F{A}{esc(o.get('label', o.get('method', '')))}`f")
             pay_lines.append(f"`F{G}│`f    `F{D}{esc(o.get('text', ''))}`f")
         pay_block = "\n".join(pay_lines) or f"`F{G}│`f  `F{D}(merchant will contact you)`f"
         print(f"""`F{G}┌─`f `!ORDER PLACED`!  `F{D}#{esc(out['order_id'])}`f
 `F{G}│`f
-`F{G}│`f  {qty}× `!{esc(item['title'])}`!  —  `!`F{G}{out['total']:.2f} {esc(out['currency'])}`f`!
+`F{G}│`f  {qty}x `!{esc(item['title'])}`!  —  `!`F{G}{out['total']:.2f} {esc(out['currency'])}`f`!
 `F{G}│`f
 `F{G}│`f  `!PAY WHICHEVER WAY SUITS YOU`!
 {pay_block}
@@ -171,6 +171,6 @@ if not confirmed:
         link_fields += ["fullname"] + [k for k in ADDR if k != "name"]
     fields = "|".join(link_fields)
     print(f"""`c
-`!`[▶ CONFIRM ORDER`:/page/buy/{sku}.mu`{fields}]`!
+`!`[CONFIRM ORDER`:/page/buy/{sku}.mu`{fields}]`!
 `a""")
 foot()

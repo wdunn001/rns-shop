@@ -67,7 +67,7 @@ Identified ops (cart/order/entitlement) sign the link with your buyer identity
 
 **Digital delivery**: `delivery.get` streams a purchased file over the encrypted
 Link (entitlement-checked; RNS handles large payloads as Resources). Merchant
-settles an invoice with `python3 -m rns_shop.admin --db … mark-paid <order>`, the LXMF worker then entitles digital SKUs and sends the receipt automatically.
+settles an invoice with `python3 -m rns_shop.admin --db ... mark-paid <order>`, the LXMF worker then entitles digital SKUs and sends the receipt automatically.
 Buyers read confirmations with `python3 -m rns_shop.client <dest> inbox`.
 
 ## Payment rails

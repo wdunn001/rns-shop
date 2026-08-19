@@ -26,8 +26,8 @@ AVAIL = {
     "digital":       ("digital — instant",   ACCENT),
 }
 
-KIND_TAG = {"physical": "⛟ ships", "digital": "⬇ over the mesh",
-            "service": "◈ service"}
+KIND_TAG = {"physical": "ships", "digital": "over the mesh",
+            "service": "service"}
 
 
 def _esc(s):
@@ -44,7 +44,7 @@ def _image_bits(item):
         return "", ""
     name = os.path.basename(str(img))
     return (f"\n# +image: /file/{name}",
-            f"`[📷 product photo`:/file/{name}]   ")
+            f"`[product photo`:/file/{name}]   ")
 
 
 def _meshdata_block(item, shop, dest_hex):
@@ -94,7 +94,7 @@ def _card(item, shop):
         f"`F{ACCENT}│`f  {_price(item, shop)}   {_avail(item)}   "
         f"`F{DIM}{kind}`f\n"
         f"`F{ACCENT}│`f  {tags}\n"
-        f"`F{ACCENT}└─`f `[view & order →`:/page/item/{item['sku']}.mu]\n")
+        f"`F{ACCENT}└─`f `[view & order ->`:/page/item/{item['sku']}.mu]\n")
 
 
 def item_page(item, shop, dest_hex):
@@ -117,12 +117,12 @@ def item_page(item, shop, dest_hex):
 
 `F{GOOD}┌─`f `!BUY IT`!
 `F{GOOD}│`f
-`F{GOOD}│`f  quantity `B{BAND_BG}`<3|qty`1>`b   `!`[⚡ BUY NOW`:/page/buy/{item['sku']}.mu`qty]`!   `!`F{ACCENT}`[+ ADD TO CART`:/page/cart/add/{item['sku']}.mu`qty]`f`!
+`F{GOOD}│`f  quantity `B{BAND_BG}`<3|qty`1>`b   `!`[BUY NOW`:/page/buy/{item['sku']}.mu`qty]`!   `!`F{ACCENT}`[+ ADD TO CART`:/page/cart/add/{item['sku']}.mu`qty]`f`!
 `F{GOOD}│`f
 {digital_note}`F{GOOD}│`f  `F{DIM}one click — your RNS identity is the account. Confirmation + receipt by LXMF.`f
 `F{GOOD}└─`f `F{DIM}new here?`f `[how buying works`:/page/docs/index.mu]  ·  `[my orders`:/page/orders.mu]  ·  `[my cart`:/page/cart.mu]
 
-`[← back to the catalog`:/page/index.mu]
+`[<- back to the catalog`:/page/index.mu]
 """
 
 
@@ -239,7 +239,7 @@ def write_pages(catalog, dest_hex, out_dir):
         written += 1
 
     # per-item cart wrappers: add-to-cart (+ / ADD TO CART button), decrement
-    # (−), and full removal (✕) -- same trick, three two-level-deep dirs
+    # (-), and full removal (x) -- same trick, three two-level-deep dirs
     # (cart/add/<sku>.mu etc, depth=2) so each click is a bare link to a
     # pre-baked file, never a literal var.
     for subdir, target, extra_env in (

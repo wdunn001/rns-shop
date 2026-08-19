@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """MY CART — multi-item cart view + checkout. Line qty is adjusted via the
-per-sku +/− wrappers (cart/add/<sku>.mu, cart/dec/<sku>.mu) and removal via
+per-sku +/- wrappers (cart/add/<sku>.mu, cart/dec/<sku>.mu) and removal via
 cart/remove/<sku>.mu (see render.py's write_pages) -- same "bake the sku into
 the file path" trick buy.mu's per-item checkout already uses, so no click
 here ever needs a literal link-var. Checkout re-uses buy.mu's two-step
@@ -33,7 +33,7 @@ def hdr(t="MY CART"):
 
 
 def foot():
-    print(f"\n`[← catalog`:/page/index.mu]  ·  `[my orders`:/page/orders.mu]")
+    print(f"\n`[<- catalog`:/page/index.mu]  ·  `[my orders`:/page/orders.mu]")
 
 
 def api_get(path):
@@ -81,7 +81,7 @@ if confirmed:
         opts = out.get("payments") or ([out["payment"]] if out.get("payment") else [])
         pay_lines = []
         for o in opts:
-            pay_lines.append(f"`F{G}│`f  `F{A}◆ {esc(o.get('label', o.get('method', '')))}`f")
+            pay_lines.append(f"`F{G}│`f  `F{A}{esc(o.get('label', o.get('method', '')))}`f")
             pay_lines.append(f"`F{G}│`f    `F{D}{esc(o.get('text', ''))}`f")
         pay_block = "\n".join(pay_lines) or f"`F{G}│`f  `F{D}(merchant will contact you)`f"
         totals = f"subtotal `!{out['subtotal']:.2f}`!"
@@ -126,8 +126,8 @@ if not confirmed:
     print(f"`F{A}┌─`f `!{len(lines)} item(s)`!")
     for e in lines:
         av = e.get("availability", "")
-        print(f"""`F{A}│`f  {e['qty']}× `!{esc(e['title'])}`!  —  `F{G}{e['line_total']:.2f} {esc(e['currency'])}`f
-`F{A}│`f    `!`F{A}`[+`:/page/cart/add/{e['sku']}.mu]`f`!  `!`F{A}`[−`:/page/cart/dec/{e['sku']}.mu]`f`!  `!`F{W}`[✕ remove`:/page/cart/remove/{e['sku']}.mu]`f`!  `F{D}sku {esc(e['sku'])}`f""")
+        print(f"""`F{A}│`f  {e['qty']}x `!{esc(e['title'])}`!  —  `F{G}{e['line_total']:.2f} {esc(e['currency'])}`f
+`F{A}│`f    `!`F{A}`[+`:/page/cart/add/{e['sku']}.mu]`f`!  `!`F{A}`[-`:/page/cart/dec/{e['sku']}.mu]`f`!  `!`F{W}`[remove`:/page/cart/remove/{e['sku']}.mu]`f`!  `F{D}sku {esc(e['sku'])}`f""")
     print(f"`F{A}└─`f")
 
     subtotal = cart.get("subtotal", 0.0)
@@ -164,7 +164,7 @@ if not confirmed:
 `F{A}└─`f
 
 `c
-`!`[▶ CHECKOUT`:/page/cart.mu`fullname|street|street2|city|region|postal|country|note|save|step]`!
+`!`[CHECKOUT`:/page/cart.mu`fullname|street|street2|city|region|postal|country|note|save|step]`!
 `a""")
 
 foot()
