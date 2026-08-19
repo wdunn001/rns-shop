@@ -1,7 +1,7 @@
-OFF-GRID FIELD ZINE — demo edition
+OFF-GRID FIELD ZINE, demo edition
 ==================================
 Congratulations: this file reached you over Reticulum, delivered by rns-shop's
-delivery.get op — entitlement-checked against your cryptographic identity,
+delivery.get op, entitlement-checked against your cryptographic identity,
 streamed over an encrypted Link. No web, no accounts, no cloud.
 
 Contents of the real zine would go here. This demo proves the pipe.
