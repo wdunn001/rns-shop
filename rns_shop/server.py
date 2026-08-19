@@ -217,7 +217,7 @@ def _dispatch(req, identity_hex):
         rel = it.get("file")
         if not rel:
             return protocol.err("no_file", req, "item has no digital payload")
-        # confine to the files dir — nothing request-derived touches the path
+        # confine to the files dir: nothing request-derived touches the path
         fp = os.path.realpath(os.path.join(_files_dir, rel))
         if not fp.startswith(os.path.realpath(_files_dir)) or not os.path.isfile(fp):
             return protocol.err("no_file", req)
@@ -282,8 +282,7 @@ def _submit_order(identity_hex, items, shipping=None, note="", lxmf=None,
 
 # ---- local checkout API (loopback-only) -------------------------------------
 # The NomadNet node's executable pages (buy.mu / orders.mu) run on the same
-# host and call this. AUTH MODEL: NomadNet already authenticated the buyer —
-# the page script receives the cryptographic `remote_identity` and forwards it;
+# host and call this. AUTH MODEL: NomadNet already authenticated the buyer, # the page script receives the cryptographic `remote_identity` and forwards it;
 # this API binds 127.0.0.1 ONLY and trusts local page scripts. Never expose it.
 class _LocalApiHandler(BaseHTTPRequestHandler):
     def _json(self, code, obj):
@@ -514,7 +513,7 @@ def _health_loop(dest):
                 # existing gap (sync_images only ran once, before this loop
                 # even started).
                 ni = render.sync_images(_catalog, images_dir, node_files_dir)
-                RNS.log(f"[rns-shop] catalog changed — re-rendered {n} pages "
+                RNS.log(f"[rns-shop] catalog changed, re-rendered {n} pages "
                         f"(+{ni} product images)")
             _state["ok"] = bool(_catalog.items)
             _state["items"] = len(_catalog.items)
@@ -658,7 +657,7 @@ def main():
             dest.announce()
             RNS.log(f"[rns-shop] announced ({_state['items']} items)")
         else:
-            RNS.log("[rns-shop] NOT announcing — catalog empty/unhealthy",
+            RNS.log("[rns-shop] NOT announcing, catalog empty/unhealthy",
                     RNS.LOG_WARNING)
         time.sleep(ANNOUNCE_INTERVAL)
 

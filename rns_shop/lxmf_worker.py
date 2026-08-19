@@ -36,7 +36,7 @@ class Worker:
 
     def start(self):
         if not HAVE_LXMF:
-            RNS.log("[rns-shop] LXMF not installed — confirmations disabled",
+            RNS.log("[rns-shop] LXMF not installed, confirmations disabled",
                     RNS.LOG_WARNING)
             return False
         idpath = os.path.join(self._state_dir, "lxmf_identity")
@@ -66,7 +66,7 @@ class Worker:
             identity = RNS.Identity.recall(dh)
             if identity is None:
                 RNS.log(f"[rns-shop] LXMF dest {dest_hash_hex[:8]}... unknown "
-                        f"(no announce seen yet) — will retry", RNS.LOG_DEBUG)
+                        f"(no announce seen yet), will retry", RNS.LOG_DEBUG)
                 return False
             dest = RNS.Destination(identity, RNS.Destination.OUT,
                                    RNS.Destination.SINGLE, "lxmf", "delivery")
@@ -135,7 +135,7 @@ class Worker:
             pay = self.store.order_payment(o["order_id"])
             pay_line = pay["text"] if pay else self.catalog.shop.get(
                 "invoice_note", "Invoice follows.")
-            body = (f"Order {o['order_id']} received — {self._items_line(o)}.\n"
+            body = (f"Order {o['order_id']} received, {self._items_line(o)}.\n"
                     f"Total: {o['total']:.2f} {o['currency']}.\n"
                     f"HOW TO PAY: {pay_line}")
             if self._send(o["lxmf"], f"{self.shop_name}: order {o['order_id']}", body):
@@ -154,7 +154,7 @@ class Worker:
             body = (f"Payment received for order {o['order_id']} "
                     f"({o['total']:.2f} {o['currency']}).\n")
             if digital:
-                body += (f"Your digital items are ready: {', '.join(digital)} — "
+                body += (f"Your digital items are ready: {', '.join(digital)}, "
                          f"fetch with op delivery.get (identified).\n")
             if physical:
                 body += "Physical items will ship; updates will follow.\n"

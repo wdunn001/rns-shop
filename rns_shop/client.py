@@ -9,7 +9,7 @@
     python3 -m rns_shop.client <dest> manifest
 
 Identified ops sign the link with your buyer identity (created on first use at
-~/.rns_shop/client_identity — BACK IT UP: it is your customer account)."""
+~/.rns_shop/client_identity, BACK IT UP: it is your customer account)."""
 import argparse
 import json
 import os
@@ -28,7 +28,7 @@ def _buyer_identity():
         return RNS.Identity.from_file(IDENTITY_PATH)
     identity = RNS.Identity()
     identity.to_file(IDENTITY_PATH)
-    print(f"(new buyer identity created at {IDENTITY_PATH} — back it up)")
+    print(f"(new buyer identity created at {IDENTITY_PATH}, back it up)")
     return identity
 
 
@@ -93,7 +93,7 @@ def main():
     if lxmf_optin:
         body["lxmf"] = RNS.hexrep(
             RNS.Destination.hash(identify, "lxmf", "delivery"), delimit=False)
-        print(f"(LXMF inbox attached: {body['lxmf']} — read receipts with "
+        print(f"(LXMF inbox attached: {body['lxmf']}, read receipts with "
               f"the 'inbox' op)")
 
     ok, resp = meshapi_client.call(args.dest, protocol.APP_NAME, aspect,
@@ -106,7 +106,7 @@ def main():
             RNS.Destination(identify, RNS.Destination.IN, RNS.Destination.SINGLE,
                             "lxmf", "delivery").announce()
         except Exception as e:
-            print(f"(inbox announce failed: {e} — run 'inbox' to announce)")
+            print(f"(inbox announce failed: {e}, run 'inbox' to announce)")
 
     # delivery.get: write the payload to disk instead of dumping bytes to stdout
     if ok and args.op == protocol.OP_DELIVERY and isinstance(resp.get("data"), bytes):
@@ -142,7 +142,7 @@ def _inbox(args):
 
     router.register_delivery_callback(on_msg)
     router.announce(dest.hash)
-    print(f"inbox open as {RNS.hexrep(dest.hash, delimit=False)} — waiting "
+    print(f"inbox open as {RNS.hexrep(dest.hash, delimit=False)}, waiting "
           f"{int(args.timeout)}s for messages...")
     import time as _t
     _t.sleep(args.timeout)

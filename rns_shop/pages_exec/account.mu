@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MY ACCOUNT — the buyer's saved details, keyed on their proven identity.
+"""MY ACCOUNT: the buyer's saved details, keyed on their proven identity.
 View shipping/preferences; updating happens at checkout ('remember me')."""
 import json
 import os
@@ -24,7 +24,7 @@ def esc(s):
 print(f"`c\n`B{BG}`F{A}  `!MY ACCOUNT`!  `f`b\n`a")
 
 if not identity:
-    print(f"`F{W}Your client didn't identify on this link`f — identify to this "
+    print(f"`F{W}Your client didn't identify on this link`f. Identify to this "
           f"node and reload.")
     print(f"\n`[<- catalog`:/page/index.mu]")
     raise SystemExit(0)
@@ -38,7 +38,7 @@ except Exception:
 
 ship = prof.get("shipping", {}) or {}
 first = (ship.get("name") or "").split(" ")[0]
-hello = f"hi, `!{esc(first)}`! — " if first else ""
+hello = f"hi, `!{esc(first)}`!, " if first else ""
 print(f"`F{A}{hello}`fyour account is your RNS identity:")
 print(f"`c`B{BG}`F{A}  {identity}  `f`b\n`a")
 
@@ -50,7 +50,7 @@ if ship:
     print(f"`F{A}┌─`f `!SAVED SHIPPING`!\n{addr}\n"
           f"`F{A}└─`f `F{D}update it at any checkout with 'remember me' ticked`f")
 else:
-    print(f"`F{D}No saved shipping yet — tick 'remember me' at checkout and "
+    print(f"`F{D}No saved shipping yet, tick 'remember me' at checkout and "
           f"your details prefill forever after.`f")
 
 if prof.get("pay_method"):
@@ -59,6 +59,6 @@ if prof.get("pay_method"):
 
 print(f"""
 `F{D}What we store: this identity hash, the shipping details above, and your
-orders. Nothing else — no passwords exist to leak.`f
+orders. Nothing else, no passwords exist to leak.`f
 
 `[<- catalog`:/page/index.mu]  ·  `[my orders`:/page/orders.mu]""")

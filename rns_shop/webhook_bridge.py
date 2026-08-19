@@ -8,10 +8,9 @@ receipt from there.
 POST /paid  {"order_id": "..."}  with header  X-Shop-Secret: <secret>
   -> production path: your Stripe/PayPal webhook adapter calls this.
 
-DEMO MODE (SHOP_DEMO=1): the bridge also SERVES a fake processor —
-GET  /demo/<order_id>       a card-checkout page a buyer opens in any browser
+DEMO MODE (SHOP_DEMO=1): the bridge also SERVES a fake processor, GET  /demo/<order_id>       a card-checkout page a buyer opens in any browser
 POST /demo/<order_id>/pay   "payment succeeded" -> order flips paid (no secret;
-                            demo only — never enable on a real shop)
+                            demo only, never enable on a real shop)
 This exercises the ENTIRE link rail (checkout URL -> web pay -> settle ->
 LXMF receipt -> delivery) with the processor spoofed."""
 import argparse
@@ -38,7 +37,7 @@ font-weight:700;margin:12px 0}} .dim{{color:#8b988f;font-size:13px}}
 button{{background:#4ade80;color:#0e1310;font-size:16px;font-weight:700;
 border:0;border-radius:10px;padding:14px 38px;margin-top:18px;cursor:pointer}}
 code{{color:#5ccfff}}</style></head><body><div class="card">
-<span class="badge">DEMO PROCESSOR — NO REAL MONEY</span>
+<span class="badge">DEMO PROCESSOR, NO REAL MONEY</span>
 {body}</div></body></html>"""
 
 

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""BUY NOW — NomadNet executable checkout.
+"""BUY NOW: NomadNet executable checkout.
 
 Two-step flow inside one page:
-  step 1 (no confirm flag): show the checkout form — qty carried in, address
+  step 1 (no confirm flag): show the checkout form, qty carried in, address
     fields for physical items (prefilled from the buyer's saved profile),
-    payment-method radios — with a CONFIRM link that submits every field back
+    payment-method radios, with a CONFIRM link that submits every field back
     here (`*`).
   step 2 (field_confirm=yes): validate, place the order, save the profile if
     asked, show ORDER PLACED + the payment instruction.
-Identity comes from NomadNet (remote_identity) — cryptographic, no accounts."""
+Identity comes from NomadNet (remote_identity), cryptographic, no accounts."""
 import json
 import os
 import urllib.request
@@ -64,7 +64,7 @@ def api_post(path, body):
 hdr()
 if not identity:
     print(f"""`F{W}┌─`f `!identify to buy`!
-`F{W}│`f  Your client didn't identify on this link — the shop needs your RNS
+`F{W}│`f  Your client didn't identify on this link. The shop needs your RNS
 `F{W}│`f  identity (that IS your account; nothing to register).
 `F{W}└─`f  Allow identifying to this node in your client, then try again.""")
     foot(); raise SystemExit(0)
@@ -73,7 +73,7 @@ try:
     item = api_get(f"/item?sku={sku}")
     assert item.get("ok")
 except Exception:
-    print(f"`F{W}Item not found — pick something from the catalog.`f")
+    print(f"`F{W}Item not found. Pick something from the catalog.`f")
     foot(); raise SystemExit(0)
 
 physical = item.get("kind", "physical") == "physical"
@@ -90,7 +90,7 @@ addr = {k: (E(f"field_{k}") or "").strip() for k in ADDR}
 if not addr["name"]:
     addr["name"] = (E("field_fullname") or "").strip()
 method = (E("field_method") or "").strip()
-# step 2 iff the form was submitted — detected by the `step` marker text
+# step 2 iff the form was submitted, detected by the `step` marker text
 # field (prefilled "2"). Payment method is NOT chosen at checkout: every
 # enabled rail's instructions come back with the placed order (pay however
 # you like; the rail that settles wins).
@@ -114,7 +114,7 @@ if confirmed:
         pay_block = "\n".join(pay_lines) or f"`F{G}│`f  `F{D}(merchant will contact you)`f"
         print(f"""`F{G}┌─`f `!ORDER PLACED`!  `F{D}#{esc(out['order_id'])}`f
 `F{G}│`f
-`F{G}│`f  {qty}x `!{esc(item['title'])}`!  —  `!`F{G}{out['total']:.2f} {esc(out['currency'])}`f`!
+`F{G}│`f  {qty}x `!{esc(item['title'])}`!:  `!`F{G}{out['total']:.2f} {esc(out['currency'])}`f`!
 `F{G}│`f
 `F{G}│`f  `!PAY WHICHEVER WAY SUITS YOU`!
 {pay_block}
@@ -127,7 +127,7 @@ if confirmed:
                 "a physical item needs your full shipping address "
                 "(name, street, city, postal, country)",
                 "not_shipped_to_country":
-                "sorry — this shop doesn't ship to that country",
+                "sorry, this shop doesn't ship to that country",
                 "bad_items": "item/quantity didn't validate"}.get(err, err)
         print(f"""`F{W}┌─`f `!couldn't place the order`!
 `F{W}│`f  {esc(hint)}
@@ -148,7 +148,7 @@ if not confirmed:
     except Exception:
         pass
 
-    print(f"\n`!{esc(item['title'])}`!  —  `F{G}{item['price']:.2f} "
+    print(f"\n`!{esc(item['title'])}`!:  `F{G}{item['price']:.2f} "
           f"{esc(item.get('currency', 'USD'))}`f   quantity `B{BG}`<3|qty`{qty}>`b\n")
 
     if physical:
@@ -162,8 +162,8 @@ if not confirmed:
 `F{A}└─`f  `F{D}saved to your profile if you tick remember`f""")
 
     pays = " · ".join(esc(m["label"]).split(" (")[0] for m in methods)
-    # `step` is the submission marker (prefilled "2") — don't edit it.
-    print(f"""`F{A}┌─`f `!FINISH UP`!  `F{D}(pay after ordering — accepted: {pays})`f
+    # `step` is the submission marker (prefilled "2"). Don't edit it.
+    print(f"""`F{A}┌─`f `!FINISH UP`!  `F{D}(pay after ordering, accepted: {pays})`f
 `F{A}│`f  note `B{BG}`<24|note`>`b   remember me `<?|save|yes`>   `F{D}confirm code`f `B{BG}`<1|step`2>`b
 `F{A}└─`f""")
     link_fields = ["qty", "note", "save", "step"]

@@ -1,8 +1,8 @@
-"""Payment providers — one generic interface, any rail behind it.
+"""Payment providers: one generic interface, any rail behind it.
 
 A provider turns an order into a PaymentInstruction (what the buyer must do)
 and can check/settle it. Instructions travel to the buyer BOTH in the checkout
-page response and in the LXMF invoice — so a link rail works for any
+page response and in the LXMF invoice, so a link rail works for any
 traditional processor (Stripe/PayPal/Square/... just template the URL), and
 crypto rails complete in-app when the watcher sees the transfer.
 
@@ -116,7 +116,7 @@ class XmrProvider(Provider):
             amount = round(order["total"] / rate, 8)
             store.order_set_xmr(order["order_id"], addr, idx, amount)
         return PaymentInstruction(
-            "xmr", f"Send exactly {amount} XMR to {addr} — the shop completes "
+            "xmr", f"Send exactly {amount} XMR to {addr}, the shop completes "
             f"the order automatically after confirmations.",
             address=addr, amount=amount)
 
@@ -127,7 +127,7 @@ class XmrProvider(Provider):
 
 
 class ManualProvider(Provider):
-    """Arbitrary payment instructions from config — bank transfer, cash at
+    """Arbitrary payment instructions from config: bank transfer, cash at
     pickup, a crypto address you check by hand, anything. Multiple manual
     rails can coexist via distinct `id`s. Placeholders: {order_id} {total}."""
     method = "manual"
@@ -163,7 +163,7 @@ class Rails:
             cls = BUILTINS.get(cfg.get("method"))
             if cls is None:
                 RNS.log(f"[rns-shop] unknown payment method "
-                        f"{cfg.get('method')!r} — skipped", RNS.LOG_WARNING)
+                        f"{cfg.get('method')!r}, skipped", RNS.LOG_WARNING)
                 continue
             p = cls(cfg, ctx)
             self.providers[p.method] = p  # ManualProvider may rename via `id`
@@ -190,7 +190,7 @@ class Rails:
         return InvoiceProvider({}, {"shop": {}, "store": None}).instruction(order)
 
     def instructions_all(self, order, preferred=None):
-        """Every enabled rail's instruction for this order — buyers pay however
+        """Every enabled rail's instruction for this order, buyers pay however
         they like; the rail that settles is the one that counts. Preferred
         method (from the buyer's profile) sorts first."""
         out = []

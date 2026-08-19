@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Storefront index — thin exec wrapper over the static body so identified
+"""Storefront index: thin exec wrapper over the static body so identified
 visitors get greeted by name while crawlers/anonymous visitors get the plain
 page (same content, same MeshData, still cache-friendly)."""
 import json
@@ -34,7 +34,7 @@ if identity and len(identity) == 32:
             pass
         cart_link = (f"`[my cart ({cart_n})`:/page/cart.mu]" if cart_n
                     else "`[my cart`:/page/cart.mu]")
-        who = f"hi, `!{first}`! — welcome back" if first else "welcome back"
+        who = f"hi, `!{first}`!, welcome back" if first else "welcome back"
         greeting = (f"`c`F{A}{who}`f   `F{D}·`f  `[my orders`:/page/orders.mu]  "
                     f"`F{D}·`f  {cart_link}  `F{D}·`f  `[my account`:/page/account.mu]\n`a\n")
     except Exception:
@@ -43,5 +43,5 @@ if identity and len(identity) == 32:
 try:
     body = open(os.path.join(HERE, "index_body.mu"), encoding="utf-8").read()
 except Exception:
-    body = "(storefront body missing — re-render pending)"
+    body = "(storefront body missing, re-render pending)"
 print(greeting + body)

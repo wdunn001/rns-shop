@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MY ORDERS — NomadNet executable page: the buyer's order history, keyed on
+"""MY ORDERS: NomadNet executable page: the buyer's order history, keyed on
 their proven identity. Digital goods they own are delivered right here.
 Each order also gets a "reorder" action: a hidden text field prefilled with
 THAT order's id, submitted by name (bare-name enumerated link, no literal
@@ -35,7 +35,7 @@ print(f"""`c
 `a""")
 
 if not identity:
-    print(f"""`F{W}Your client didn't identify on this link`f — identify to this
+    print(f"""`F{W}Your client didn't identify on this link`f. Identify to this
 node and reload; your RNS identity is your account.""")
     print(f"\n`[<- back to the catalog`:/page/index.mu]")
     raise SystemExit(0)
@@ -64,7 +64,7 @@ def api_post(path, body):
 try:
     orders = api(f"/orders?identity={identity}").get("orders", [])
 except Exception:
-    print(f"`F{W}shop backend unreachable — try again in a moment`f")
+    print(f"`F{W}shop backend unreachable, try again in a moment`f")
     raise SystemExit(0)
 
 # Reorder: exactly one `field_reorder_<oid>` is set per click (the CONFIRM
@@ -97,7 +97,7 @@ else:
         when = time.strftime("%Y-%m-%d %H:%M", time.gmtime(o["created"]))
         items = ", ".join(f"{e['qty']}x {esc(e['sku'])}" for e in o["items"])
         print(f"""`F{A}┌─`f `!#{esc(o['order_id'])}`!  `F{color}{esc(o['status'])}`f  `F{D}{when} UTC`f
-`F{A}│`f  {esc(items)}  —  `F{G}{o['total']:.2f} {esc(o['currency'])}`f""")
+`F{A}│`f  {esc(items)}:  `F{G}{o['total']:.2f} {esc(o['currency'])}`f""")
         if o["status"] in ("submitted", "awaiting_payment"):
             try:
                 pay = api(f"/payment?identity={identity}&order_id={o['order_id']}"
@@ -121,10 +121,10 @@ else:
                             f"`F{A}│`f  `F{D}{esc(l)}`f"
                             for l in d["text"].splitlines()[:20])
                         print(f"`F{A}│`f  `!{esc(d['filename'])}`! "
-                              f"`F{D}({d['bytes']} bytes — delivered below)`f\n{body}")
+                              f"`F{D}({d['bytes']} bytes, delivered below)`f\n{body}")
                     else:
                         print(f"`F{A}│`f  `!{esc(d['filename'])}`! "
-                              f"`F{D}({d['bytes']} bytes — fetch with delivery.get "
+                              f"`F{D}({d['bytes']} bytes, fetch with delivery.get "
                               f"over the shop service)`f")
         oid = esc(o["order_id"])
         print(f"""`F{A}│`f  `B{BG}`<10|reorder_{oid}`{oid}>`b `!`F{A}`[reorder`:/page/orders.mu`reorder_{oid}]`f`!

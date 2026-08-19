@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ADD TO CART — invoked via a per-sku baked wrapper (var_sku set by
+"""ADD TO CART: invoked via a per-sku baked wrapper (var_sku set by
 write_pages -- /page/cart/add/<SKU>.mu -- same "bake the sku into the file
 path" trick buy.mu's per-item checkout uses, so no click here ever needs a
 literal link-var). field_qty comes from the item page's quantity stepper
@@ -27,7 +27,7 @@ def esc(s):
 print(f"`c\n`B{BG}`F{A}  `!ADD TO CART`!  `f`b\n`a")
 
 if not identity:
-    print(f"`F{W}Your client didn't identify on this link`f — identify to this "
+    print(f"`F{W}Your client didn't identify on this link`f. Identify to this "
           f"node and reload, then try again.")
     print(f"\n`[<- catalog`:/page/index.mu]")
     raise SystemExit(0)

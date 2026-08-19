@@ -1,5 +1,5 @@
 # +type: wiki
-# +title: rns-shop — commerce over the mesh
+# +title: rns-shop: commerce over the mesh
 # +description: Self-hosted e-commerce for Reticulum/NomadNet: catalog, carts, orders, entitlements. MeshData-native, Beacon-discoverable.
 # +tags: rns-shop, commerce, meshapi, meshdata
 
@@ -9,7 +9,7 @@ Self-hosted commerce over Reticulum. Point it at a catalog file, get:
 
 - a micron storefront node (static, fast, LoRa-friendly)
 - a MeshAPI service: catalog · carts · orders · entitlements
-- MeshData `!product`! records on every item page — so listings appear in
+- MeshData `!product`! records on every item page, so listings appear in
   Beacon's shop view automatically
 
 Your buyer identity is your RNS identity. No accounts, no passwords, no PII
@@ -18,17 +18,17 @@ unless you're shipping something physical.
 >>How buying works
 
 `F6d8┌─`f  1. Browse the catalog (this node, or any shop Beacon found you)
-`F6d8│`f   2. Set a quantity and hit `!BUY NOW`! — right on the item page
+`F6d8│`f   2. Set a quantity and hit `!BUY NOW`!, right on the item page
 `F6d8│`f   3. Your RNS identity IS your account (no signup, no password)
 `F6d8│`f   4. Confirmation + receipt arrive by LXMF
-`F6d8└─`f  5. Track orders — and receive digital goods — on the `!my orders`! page
+`F6d8└─`f  5. Track orders, and receive digital goods, on the `!my orders`! page
 
 Payment: invoice by LXMF (default), plus Stripe-link handoff and Monero
 (watch-only) where the merchant enables them.
 
 >>For builders (programmatic buying)
 
-The shop is also a MeshAPI service — everything the buttons do, scriptable:
+The shop is also a MeshAPI service, everything the buttons do, scriptable:
 
 `=
 python3 -m rns_shop.client <dest> catalog.list
@@ -44,13 +44,13 @@ cd rns-shop && cp examples/catalog.yaml catalog.yaml   # edit it
 python3 -m rns_shop.server --catalog catalog.yaml
 `=
 
-Serve the generated pages/ dir from a NomadNet node (its own node — announced,
+Serve the generated pages/ dir from a NomadNet node (its own node, announced,
 discoverable). Full guide: `[getting started`:/page/getting-started.mu]
 
 >>The pieces
 
-- `!MeshAPI`! — service discovery + docs (`!__manifest__`! op)
-- `!MeshData`! — the `!product`! record type (schema.org Product/Offer mapped)
-- `!Beacon`! — the mesh search engine that surfaces every shop's listings
+- `!MeshAPI`!, service discovery + docs (`!__manifest__`! op)
+- `!MeshData`!, the `!product`! record type (schema.org Product/Offer mapped)
+- `!Beacon`!, the mesh search engine that surfaces every shop's listings
 
 source: https://github.com/wdunn001/rns-shop

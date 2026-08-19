@@ -1,4 +1,4 @@
-"""Render the catalog to a micron storefront — the flashy edition.
+"""Render the catalog to a micron storefront: the flashy edition.
 
 Micron gives us 12-bit color (`F<hex3>`/`f fg, `B<hex3>`/`b bg), bold (`!),
 centering (`c / `a), dividers and box-drawing. The storefront should look like
@@ -7,23 +7,23 @@ availability color-coding, highlighted order box. MeshData blocks ride on top
 (invisible) so crawlers index every listing.
 
 Left-rail cards (no right border) keep alignment safe: markup codes render
-zero-width, so fixed-width boxes would need visible-length math — the open
+zero-width, so fixed-width boxes would need visible-length math, the open
 right edge sidesteps it entirely."""
 import os
 
 # palette (12-bit micron color)
-ACCENT = "5cf"   # cyan — rails, links, structure
-GOOD = "6d8"     # green — prices, in stock
-WARN = "ec7"     # amber — made to order
-BAD = "e66"      # red — out of stock
-DIM = "89a"      # dim slate — secondary text
+ACCENT = "5cf"   # cyan: rails, links, structure
+GOOD = "6d8"     # green: prices, in stock
+WARN = "ec7"     # amber: made to order
+BAD = "e66"      # red: out of stock
+DIM = "89a"      # dim slate: secondary text
 BAND_BG = "124"  # header band background
 
 AVAIL = {
     "in_stock":      ("in stock",            GOOD),
     "made_to_order": ("made to order",       WARN),
     "out_of_stock":  ("out of stock",        BAD),
-    "digital":       ("digital — instant",   ACCENT),
+    "digital":       ("digital, instant",   ACCENT),
 }
 
 KIND_TAG = {"physical": "ships", "digital": "over the mesh",
@@ -37,7 +37,7 @@ def _esc(s):
 
 def _image_bits(item):
     """(meshdata_line, page_link) for an item image served from the node's
-    files dir — product photos are public, so /file/ (no ACL) is the right
+    files dir, product photos are public, so /file/ (no ACL) is the right
     home; paid goods never go there."""
     img = item.get("image")
     if not img:
@@ -67,7 +67,7 @@ def _meshdata_block(item, shop, dest_hex):
 def _banner(shop):
     name = _esc(shop.get("name", "shop")).upper()
     tagline = _esc(shop.get("tagline",
-                            "a shop on the mesh — no accounts, no passwords"))
+                            "a shop on the mesh, no accounts, no passwords"))
     bar = "▔" * (len(name) + 8)
     return (f"`c\n"
             f"`B{BAND_BG}`F{ACCENT}                                        `f`b\n"
@@ -103,7 +103,7 @@ def item_page(item, shop, dest_hex):
     digital_note = ""
     if item.get("kind") == "digital":
         digital_note = (f"`F{ACCENT}│`f  `F{DIM}after payment: fetch with "
-                        f"delivery.get — the file arrives over the mesh`f\n")
+                        f"delivery.get, the file arrives over the mesh`f\n")
     return f"""{_meshdata_block(item, shop, dest_hex)}
 `c
 `B{BAND_BG}`F{ACCENT}  `!{_esc(item['title'])}`!  `f`b
@@ -119,7 +119,7 @@ def item_page(item, shop, dest_hex):
 `F{GOOD}│`f
 `F{GOOD}│`f  quantity `B{BAND_BG}`<3|qty`1>`b   `!`[BUY NOW`:/page/buy/{item['sku']}.mu`qty]`!   `!`F{ACCENT}`[+ ADD TO CART`:/page/cart/add/{item['sku']}.mu`qty]`f`!
 `F{GOOD}│`f
-{digital_note}`F{GOOD}│`f  `F{DIM}one click — your RNS identity is the account. Confirmation + receipt by LXMF.`f
+{digital_note}`F{GOOD}│`f  `F{DIM}one click. Your RNS identity is the account. Confirmation + receipt by LXMF.`f
 `F{GOOD}└─`f `F{DIM}new here?`f `[how buying works`:/page/docs/index.mu]  ·  `[my orders`:/page/orders.mu]  ·  `[my cart`:/page/cart.mu]
 
 `[<- back to the catalog`:/page/index.mu]
@@ -134,7 +134,7 @@ def index_page(catalog, dest_hex):
         cards = f"`F{DIM}(no items yet)`f"
     return f"""# +type: index
 # +title: {_esc(shop.get('name', 'shop'))}
-# +description: {_esc(shop.get('name', 'shop'))} — a self-hosted shop on the Reticulum mesh (rns-shop). Buyer identity = RNS identity.
+# +description: {_esc(shop.get('name', 'shop'))}: a self-hosted shop on the Reticulum mesh (rns-shop). Buyer identity = RNS identity.
 
 {_banner(shop)}
 
@@ -144,19 +144,19 @@ def index_page(catalog, dest_hex):
 >>How it works
 
 `F{ACCENT}┌─`f  1. pick items · hit `!BUY NOW`! for one, or `!ADD TO CART`! for several
-`F{ACCENT}│`f   2. your RNS identity IS your account — nothing to register
+`F{ACCENT}│`f   2. your RNS identity IS your account, nothing to register
 `F{ACCENT}│`f   3. confirmation + receipt arrive by LXMF
 `F{ACCENT}└─`f  4. track everything on `[my orders`:/page/orders.mu] `F{DIM}·`f `[my cart`:/page/cart.mu] `F{DIM}·`f `[my account`:/page/account.mu]
 
 `F{DIM}{_esc(shop.get('invoice_note', 'You will receive an LXMF invoice after ordering.'))}`f
 
-`F{DIM}Building something? The shop is also a MeshAPI service — app rnshop,
+`F{DIM}Building something? The shop is also a MeshAPI service, app rnshop,
 aspect shop (answers ops, not pages):`f
 `c`B{BAND_BG}`F{ACCENT}  {dest_hex}  `f`b
 `a
 
 -
-`c`F{DIM}powered by`f `F{ACCENT}rns-shop`f `F{DIM}— run your own: https://github.com/wdunn001/rns-shop`f
+`c`F{DIM}powered by`f `F{ACCENT}rns-shop`f `F{DIM}, run your own: https://github.com/wdunn001/rns-shop`f
 `a"""
 
 
@@ -183,7 +183,7 @@ def sync_images(catalog, images_dir, node_files_dir):
 def write_pages(catalog, dest_hex, out_dir):
     os.makedirs(os.path.join(out_dir, "item"), exist_ok=True)
     # index = exec wrapper (greets identified buyers) over the static body
-    # (what crawlers and anonymous visitors see — MeshData block included)
+    # (what crawlers and anonymous visitors see, MeshData block included)
     with open(os.path.join(out_dir, "index_body.mu"), "w", encoding="utf-8") as fh:
         fh.write(index_page(catalog, dest_hex))
     written = 1
@@ -227,7 +227,7 @@ def write_pages(catalog, dest_hex, out_dir):
         return "\n".join(lines) + "\n"
 
     # per-item buy wrappers: /page/buy/<SKU>.mu bakes the SKU in, so BUY NOW
-    # links only submit the bare `qty` field — the one link-field form every
+    # links only submit the bare `qty` field, the one link-field form every
     # micron client supports (literal name=value entries are not universal)
     buy_dir = os.path.join(out_dir, "buy")
     os.makedirs(buy_dir, exist_ok=True)

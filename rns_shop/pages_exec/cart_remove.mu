@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""REMOVE / DECREMENT a cart line — invoked via a per-sku baked wrapper
+"""REMOVE / DECREMENT a cart line: invoked via a per-sku baked wrapper
 (var_sku + var_mode set by write_pages -- /page/cart/remove/<SKU>.mu for a
 full removal, /page/cart/dec/<SKU>.mu for a -1 step -- same file-path-bakes-
 the-argument trick as cart_add.mu / buy.mu's per-item checkout)."""
@@ -23,7 +23,7 @@ def esc(s):
 print(f"`c\n`B{BG}`F{A}  `!CART`!  `f`b\n`a")
 
 if not identity:
-    print(f"`F{W}Your client didn't identify on this link`f — identify to this "
+    print(f"`F{W}Your client didn't identify on this link`f. Identify to this "
           f"node and reload, then try again.")
     print(f"\n`[<- cart`:/page/cart.mu]")
     raise SystemExit(0)

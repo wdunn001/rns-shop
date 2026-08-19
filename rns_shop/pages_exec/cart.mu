@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MY CART — multi-item cart view + checkout. Line qty is adjusted via the
+"""MY CART: multi-item cart view + checkout. Line qty is adjusted via the
 per-sku +/- wrappers (cart/add/<sku>.mu, cart/dec/<sku>.mu) and removal via
 cart/remove/<sku>.mu (see render.py's write_pages) -- same "bake the sku into
 the file path" trick buy.mu's per-item checkout already uses, so no click
@@ -59,7 +59,7 @@ def api_post(path, body):
 hdr()
 if not identity:
     print(f"""`F{W}┌─`f `!identify to see your cart`!
-`F{W}│`f  Your client didn't identify on this link — the shop needs your RNS
+`F{W}│`f  Your client didn't identify on this link. The shop needs your RNS
 `F{W}│`f  identity (that IS your account; nothing to register).
 `F{W}└─`f  Allow identifying to this node in your client, then try again.""")
     foot(); raise SystemExit(0)
@@ -126,7 +126,7 @@ if not confirmed:
     print(f"`F{A}┌─`f `!{len(lines)} item(s)`!")
     for e in lines:
         av = e.get("availability", "")
-        print(f"""`F{A}│`f  {e['qty']}x `!{esc(e['title'])}`!  —  `F{G}{e['line_total']:.2f} {esc(e['currency'])}`f
+        print(f"""`F{A}│`f  {e['qty']}x `!{esc(e['title'])}`!:  `F{G}{e['line_total']:.2f} {esc(e['currency'])}`f
 `F{A}│`f    `!`F{A}`[+`:/page/cart/add/{e['sku']}.mu]`f`!  `!`F{A}`[-`:/page/cart/dec/{e['sku']}.mu]`f`!  `!`F{W}`[remove`:/page/cart/remove/{e['sku']}.mu]`f`!  `F{D}sku {esc(e['sku'])}`f""")
     print(f"`F{A}└─`f")
 

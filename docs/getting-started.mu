@@ -1,5 +1,5 @@
 # +type: wiki
-# +title: rns-shop — getting started
+# +title: rns-shop: getting started
 # +description: Stand up your own shop on the mesh in an afternoon.
 # +tags: rns-shop, guide
 
@@ -28,7 +28,7 @@ items:
 python3 -m rns_shop.server --catalog catalog.yaml --pages-out pages
 `=
 
-It prints your destination hash (your shop's address — PUBLISH it, and BACK UP
+It prints your destination hash (your shop's address, PUBLISH it, and BACK UP
 the identity file: losing it breaks every published pointer), renders the
 storefront pages, and announces on the mesh while healthy. Edit the catalog any
 time; pages re-render within a minute.

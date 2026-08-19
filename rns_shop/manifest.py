@@ -7,7 +7,7 @@ from . import protocol
 def build(dest_hex, shop_name):
     return schema.build_manifest(
         service={
-            "name": f"rns-shop — {shop_name}",
+            "name": f"rns-shop: {shop_name}",
             "summary": "Self-hosted commerce over Reticulum: catalog, carts, "
                        "orders, entitlements. Buyer identity = RNS identity.",
             "app": protocol.APP_NAME,
@@ -76,7 +76,7 @@ def build(dest_hex, shop_name):
              "auth": "identified", "request": {"sku": "str!"},
              "response": {"entitled": "bool"}},
             {"op": protocol.OP_DELIVERY,
-             "summary": "Fetch a digital good you own — delivered over the mesh",
+             "summary": "Fetch a digital good you own, delivered over the mesh",
              "auth": "identified", "request": {"sku": "str!"},
              "response": {"filename": "str", "data": "bytes"}},
             {"op": protocol.OP_PAY_LINK,
