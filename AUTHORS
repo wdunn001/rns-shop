@@ -3,6 +3,9 @@ AUTHORS
 William Dunn <wdunn001@gmail.com>
   Author and maintainer.
 
-Claude (Anthropic)
-  Co-author of portions of the implementation and documentation, working
-  with the maintainer.
+AI tooling
+  Parts of the implementation and documentation were written with AI
+  assistance under the maintainer's direction. The project draws on an array
+  of models. These include Claude (Anthropic) and open-weight models such as
+  Qwen and gpt-oss, served locally through Ollama. A delegate decides which
+  model handles each task.
