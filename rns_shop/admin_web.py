@@ -83,7 +83,7 @@ def _nav():
 # Minimal multipart/form-data parser. stdlib's cgi.FieldStorage is
 # deprecated (removed in 3.13); this is deliberately small, only handling
 # what the catalog editor's one form (a handful of text fields + one
-# optional file) actually needs, not general MIME.
+# optional file) actually needs. It does not handle general MIME.
 # ---------------------------------------------------------------------------
 def _parse_multipart(content_type, body):
     m = re.search(r'boundary="?([^";]+)"?', content_type or "")
@@ -145,7 +145,7 @@ def _dashboard_html(store, catalog, rails):
                        for sku, n in top_items)
 
     body = f"""
-<h1>&#9881; {_esc(catalog.shop.get('name', 'shop'))} -- merchant admin</h1>
+<h1>&#9881; {_esc(catalog.shop.get('name', 'shop'))}: merchant admin</h1>
 <p class=sub>private, Authentik-gated &middot; {len(orders)} orders total &middot; auto-refresh 60s
 &middot; <a href="/catalog">catalog editor &rarr;</a></p>
 <div class=grid>{cards}</div>
@@ -160,7 +160,7 @@ def _dashboard_html(store, catalog, rails):
 <div class=panel><table><tr><th>sku</th><th style="text-align:right">units</th></tr>
 {itemrows or '<tr><td colspan=2 style="color:var(--dim)">no sales yet</td></tr>'}</table></div>
 """
-    return _page(f"{catalog.shop.get('name', 'shop')} -- admin", body,
+    return _page(f"{catalog.shop.get('name', 'shop')}: admin", body,
                  head_extra='<meta http-equiv=refresh content=60>\n')
 
 
@@ -202,7 +202,7 @@ def _order_html(store, catalog, rails, order_id):
 <div style="white-space:pre-wrap">{_esc(m['body'])}</div></div>"""
         for m in msgs)
 
-    return _page(f"Order #{order_id} -- admin", f"""
+    return _page(f"Order #{order_id}: admin", f"""
 {_nav()}
 <p><a href="/">&larr; all orders</a></p>
 <h1>Order #{_esc(order_id)}  {_pill(o['status'])}</h1>
@@ -228,7 +228,7 @@ def _order_html(store, catalog, rails, order_id):
 {f'<h2>Manual entitlement (digital/service items)</h2><div class=panel>{entitle_form}</div>' if entitle_form else ''}
 
 <h2>Message the buyer</h2>
-<p class=sub style="margin-top:-8px">sent over LXMF -- the same channel order confirmations/receipts already
+<p class=sub style="margin-top:-8px">sent over LXMF, the same channel order confirmations/receipts already
 use. If their client hasn't announced an LXMF inbox yet, this queues nothing: it reports "no inbox known" so
 you know to try again later, same as the automated flow's own retry window.</p>
 <div class=panel>
@@ -255,12 +255,12 @@ def _catalog_list_html(catalog):
         for sku, it in sorted(catalog.items.items()))
     readonly_note = "" if path else (
         '<div class=panel style="border-color:var(--warn)"><b style="color:var(--warn)">Read-only.</b> '
-        "This shop's catalog is sourced from an external connector (Squarespace/Medusa), not a local "
-        "catalog.yaml -- edit it at the source; nothing here writes back to it.</div>")
+        "This shop's catalog comes from an external connector (Squarespace/Medusa). There is no local "
+        "catalog.yaml. Edit it at the source. Nothing here writes back to it.</div>")
     new_link = '<p><a href="/catalog/item">+ add new item</a></p>' if path else ''
-    return _page("Catalog -- admin", f"""
+    return _page("Catalog: admin", f"""
 {_nav()}
-<h1>&#128230; catalog -- {len(catalog.items)} items</h1>
+<h1>&#128230; catalog: {len(catalog.items)} items</h1>
 {readonly_note}
 <div class=panel><table>
 <tr><th>sku</th><th>title</th><th style="text-align:right">price</th><th>availability</th><th>kind</th><th>ships to</th></tr>
@@ -289,7 +289,7 @@ def _catalog_item_html(catalog, sku, error=None):
     kind_opts = "".join(f'<option value="{k}"{" selected" if it.get("kind", "physical") == k else ""}>{k}</option>'
                         for k in KINDS)
 
-    return _page(f"{'add item' if is_new else f'edit {sku}'} -- admin", f"""
+    return _page(f"{'add item' if is_new else f'edit {sku}'}: admin", f"""
 {_nav()}
 <p><a href="/catalog">&larr; catalog</a></p>
 <h1>{'Add item' if is_new else f'Edit {_esc(sku)}'}</h1>
@@ -304,7 +304,7 @@ def _catalog_item_html(catalog, sku, error=None):
 <label>kind <select name=kind>{kind_opts}</select></label>
 <label>availability <select name=availability>{avail_opts}</select></label><br><br>
 <label>tags, comma-separated <input name=tags value="{tags}" style="width:50%"></label><br><br>
-<label>ships to -- ISO codes comma-separated, or WORLDWIDE
+<label>ships to: ISO codes comma-separated, or WORLDWIDE
 <input name=ships_to value="{ships_to}" style="width:50%" placeholder="US, CA  (blank = ships nowhere until set)"></label><br><br>
 <label>weight_kg (for shop.shipping's weight_tiers estimate) <input name=weight_kg type=number step="0.01" value="{it.get('weight_kg', '') or ''}"></label><br><br>
 <label>image filename <input name=image value="{v('image')}" placeholder="leave blank if uploading below"></label>

@@ -3,7 +3,7 @@ providers.py (payment rails) and catalog.py (catalog sources): one
 interface, any method behind it. A shipping provider turns an order's
 (physical) items into a fee, added to the item subtotal BEFORE payment
 instructions are built, so every rail (invoice/link/xmr/manual) quotes and
-collects the true total, not just goods.
+collects the true total (goods plus shipping).
 
 Shop config (catalog.yaml):
   shop:
@@ -35,8 +35,8 @@ the configured method.
 NOT implemented: live carrier rate-shopping (USPS/UPS/FedEx real quotes).
 That needs its own third-party API credential (e.g. EasyPost/Shippo, which
 themselves aggregate the carriers) and would slot in here as one more class.
-The interface is built generic enough for that to be a follow-on, not a
-rewrite, exactly like adding a new payment rail or catalog source.
+The interface is built generic enough for that to be just a follow-on,
+exactly like adding a new payment rail or catalog source.
 """
 
 
@@ -131,7 +131,7 @@ def quote(catalog, items, address=None):
     """The one entry point server.py calls. Builds the configured provider
     fresh each call (stateless: shop.shipping can change on a catalog
     reload with no cache to invalidate) and NEVER raises: a shipping-config
-    bug degrades to "no shipping fee charged" rather than breaking checkout,
+    bug degrades to "no shipping fee charged", so checkout still completes,
     same failure posture as a payment rail returning no instruction."""
     cfg = (catalog.shop.get("shipping") or {"method": "free"})
     cls = BUILTINS.get(cfg.get("method", "free"), FreeProvider)

@@ -175,7 +175,7 @@ def _dispatch(req, identity_hex):
             if e["sku"] in _catalog.items:
                 _store.cart_add(identity_hex, e["sku"], e["qty"])
             else:
-                skipped += 1   # discontinued SKU, skip rather than fail the whole reorder
+                skipped += 1   # discontinued SKU, skip it and keep the rest of the reorder
         return protocol.ok({"items": _store.cart_get(identity_hex), "skipped": skipped}, req)
     if op == protocol.OP_ORDER_SUBMIT:
         items = req.get("items") or _store.cart_get(identity_hex)
@@ -255,8 +255,8 @@ def _submit_order(identity_hex, items, shipping=None, note="", lxmf=None,
     subtotal = _subtotal(items)
     # shipping.quote() is a rough estimate by design (flat/weight-tier
     # config, no live carrier rate-shopping yet, see shipping.py) and
-    # NEVER raises; a shipping-config bug degrades to "no fee charged"
-    # rather than blocking checkout.
+    # NEVER raises. A shipping-config bug degrades to "no fee charged", so
+    # checkout still completes.
     fee = shipping_mod.quote(_catalog, items, addr)
     total = round(subtotal + (fee or 0.0), 2)
     oid = _store.order_create(identity_hex, items, total,
@@ -504,7 +504,7 @@ def _health_loop(dest):
             if _catalog.changed():
                 _catalog.load()
                 n = render.write_pages(_catalog, _state["dest"], _pages_out)
-                # Sync product images on EVERY reload, not just at startup.
+                # Sync product images on EVERY reload. A startup-only sync is not enough.
                 # Otherwise an image dropped into SHOP_IMAGES after boot (by
                 # hand, or via the admin portal's catalog editor) never
                 # actually reaches the node's /file/ volume, even though the
@@ -634,8 +634,8 @@ def main():
 
     # Merchant admin portal. PRIVATE, binds 0.0.0.0 unlike the loopback-
     # only local API above, because it's meant to be reached through the
-    # Caddy edge (Authentik-gated vhost), not called by same-host page
-    # scripts. See admin_web.py's module docstring for the full trust
+    # Caddy edge (Authentik-gated vhost). Same-host page scripts do not
+    # call it. See admin_web.py's module docstring for the full trust
     # model. This process implements no auth itself, Caddy's forward-auth
     # is the only gate, so this MUST NEVER get a public vhost or a raw
     # port-forward (see no-raw-public-port-exposure memory; the buyer-
@@ -645,7 +645,7 @@ def main():
                     worker_ref=lambda: _lxmf_worker,
                     images_dir=os.environ.get("SHOP_IMAGES"))
     RNS.log(f"[rns-shop] merchant admin portal on :{admin_port} "
-            f"(private -- put this behind Authentik, never a public vhost)")
+            f"(private: put this behind Authentik, never a public vhost)")
 
     threading.Thread(target=_health_loop, args=(dest,), daemon=True).start()
     srv = ThreadingHTTPServer(("0.0.0.0", args.healthz_port), _HealthHandler)

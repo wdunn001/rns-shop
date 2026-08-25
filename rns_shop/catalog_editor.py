@@ -71,7 +71,8 @@ def item_from_form(form):
     """Build a catalog item dict from the editor form's flat string fields.
     Validates against the SAME rules catalog.Catalog.load() enforces at
     runtime (REQUIRED/AVAILABILITY/KINDS) so a bad save fails here, in the
-    editor, with a clear message, not silently at the next shopd reload."""
+    editor, with a clear message. It does not fail silently at the next
+    shopd reload."""
     sku = (form.get("sku") or "").strip()
     title = (form.get("title") or "").strip()
     price_raw = (form.get("price") or "").strip()
@@ -114,7 +115,7 @@ def item_from_form(form):
 def upsert_item(doc, original_sku, item):
     """original_sku: the sku this item was loaded under (None for a new
     item). Lets the editor RENAME a sku by removing the old entry and
-    inserting the new one, rather than ending up with both."""
+    inserting the new one, so it never ends up with both."""
     items = doc.setdefault("items", [])
     if original_sku is not None:
         items[:] = [it for it in items if str(it.get("sku")) != str(original_sku)]

@@ -2,7 +2,7 @@
 
 Micron gives us 12-bit color (`F<hex3>`/`f fg, `B<hex3>`/`b bg), bold (`!),
 centering (`c / `a), dividers and box-drawing. The storefront should look like
-a shop, not a man page: color-banded header, product cards with a colored rail,
+a shop: color-banded header, product cards with a colored rail,
 availability color-coding, highlighted order box. MeshData blocks ride on top
 (invisible) so crawlers index every listing.
 
@@ -113,7 +113,7 @@ def item_page(item, shop, dest_hex):
 
 {desc}
 
-{_image_bits(item)[1]}`F{DIM}ships to: {', '.join(item.get('ships_to') or []).lower() or 'not configured yet -- contact the merchant'}`f
+{_image_bits(item)[1]}`F{DIM}ships to: {', '.join(item.get('ships_to') or []).lower() or 'not configured yet, contact the merchant'}`f
 
 `F{GOOD}┌─`f `!BUY IT`!
 `F{GOOD}│`f
@@ -151,7 +151,7 @@ def index_page(catalog, dest_hex):
 `F{DIM}{_esc(shop.get('invoice_note', 'You will receive an LXMF invoice after ordering.'))}`f
 
 `F{DIM}Building something? The shop is also a MeshAPI service, app rnshop,
-aspect shop (answers ops, not pages):`f
+aspect shop (answers ops queries):`f
 `c`B{BAND_BG}`F{ACCENT}  {dest_hex}  `f`b
 `a
 

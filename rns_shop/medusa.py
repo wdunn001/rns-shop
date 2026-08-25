@@ -38,7 +38,7 @@ class MedusaCatalog(CatalogSource):
         # untested against a live store). Same stance as squarespace.py:
         # catalog.CatalogSource.ships_ok() is safe-by-default (undeclared =
         # denied everywhere), so this stays unset unless MEDUSA_SHIPS_TO is
-        # explicitly configured, rather than silently defaulting worldwide.
+        # explicitly configured. It never silently defaults to worldwide.
         self.default_ships_to = [c.strip().upper() for c in
                                  os.environ.get("MEDUSA_SHIPS_TO", "").split(",") if c.strip()]
         self._loaded = 0.0

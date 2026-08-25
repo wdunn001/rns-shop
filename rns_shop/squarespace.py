@@ -29,7 +29,7 @@ Optional env:
 
 Squarespace Commerce API notes (developers.squarespace.com/commerce-apis,
 checked 2026-08-17. Re-verify against live docs before relying on exact
-field names, this is one connector's read of them, not a mirror of the spec):
+field names. This is one connector's read of them. It does not mirror the full spec):
   - Base: https://api.squarespace.com/{api-version}/commerce/...
   - Auth: `Authorization: Bearer <API key>`
   - Products: GET /commerce/products, cursor-paginated via
@@ -46,12 +46,13 @@ field names, this is one connector's read of them, not a mirror of the spec):
     or store-wide "ships to these countries" list as of this writing.
     Shipping ZONES are dashboard-only configuration with no read endpoint
     found. ships_to therefore comes from SQUARESPACE_SHIPS_TO (shop-level,
-    like catalog.yaml's shop.ships_to default) rather than being read live;
-    if that's wrong for a given store, fix the env var, not this connector.
+    like catalog.yaml's shop.ships_to default) and is never read live.
+    If that's wrong for a given store, fix the env var. The connector
+    needs no change.
     Package weight/dimensions (shippingMeasurements) ARE available per
     variant and are captured as shipping_weight_kg/shipping_dims_cm on the
     item dict for a future real-rate-shopping provider, even though nothing
-    reads them yet. Documented rather than silently dropped.
+    reads them yet. They stay captured so the data survives for later use.
 """
 import hashlib
 import json
@@ -104,7 +105,7 @@ class SquarespaceCatalog(CatalogSource):
         raw_ships_to = os.environ.get("SQUARESPACE_SHIPS_TO")
         if not raw_ships_to:
             raise RuntimeError(
-                "SHOP_CATALOG=squarespace://... needs SQUARESPACE_SHIPS_TO set -- "
+                "SHOP_CATALOG=squarespace://... needs SQUARESPACE_SHIPS_TO set: "
                 "comma-separated ISO-3166 alpha-2 country codes this shop will "
                 "actually ship physical goods to (or the literal value WORLDWIDE "
                 "if genuinely unrestricted). No default: Squarespace's API doesn't "
@@ -190,7 +191,7 @@ class SquarespaceCatalog(CatalogSource):
                 price_obj = (pricing.get("salePrice") if pricing.get("onSale")
                             else pricing.get("basePrice"))
                 if not price_obj or price_obj.get("value") is None:
-                    continue   # unpriced variant, can't sell it, skip rather than crash
+                    continue   # unpriced variant, can't sell it, so skip it and continue
                 stock = v.get("stock") or {}
                 if kind == "digital":
                     availability = "digital"

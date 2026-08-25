@@ -105,8 +105,8 @@ class CatalogSource:
     def ships_ok(item, country):
         """SAFE BY DEFAULT: an item with no declared ships_to is treated as
         "the vendor hasn't said where they'll ship this", not "anywhere".
-        Physical goods checkout REFUSES rather than silently allowing a
-        destination nobody configured. This interface backs any catalog
+        Physical goods checkout REFUSES a destination nobody configured. It
+        never silently allows one. This interface backs any catalog
         source a vendor plugs in (Squarespace today, anything else
         tomorrow); a connector whose upstream doesn't expose real shipping-
         destination data (Squarespace's API doesn't, see squarespace.py)
@@ -152,7 +152,8 @@ class Catalog(CatalogSource):
             it["tags"] = list(it.get("tags") or [])
             # ships_to: item override else shop default else NOT configured
             # (empty, see CatalogSource.ships_ok: that means "denied
-            # everywhere" until the merchant says otherwise, not worldwide).
+            # everywhere" until the merchant says otherwise. It is never
+            # worldwide by default).
             # Uppercase ISO-3166 alpha-2 codes, or ["worldwide"] as an
             # explicit opt-in.
             st = it.get("ships_to") or shop.get("ships_to") or []
@@ -187,8 +188,8 @@ def open_catalog(spec, files_dir=None):
     the YAML backend, the zero-config default every existing deployment
     already relies on. '<scheme>://...' opens whatever CatalogSource
     subclass is registered for that scheme. An unrecognized scheme raises
-    immediately naming what IS registered, rather than silently falling back
-    to an empty/wrong catalog on a typo'd SHOP_CATALOG."""
+    immediately naming what IS registered. It never silently falls back
+    to an empty or wrong catalog on a typo'd SHOP_CATALOG."""
     spec = str(spec)
     if "://" not in spec:
         return Catalog(spec, files_dir=files_dir)
@@ -196,7 +197,7 @@ def open_catalog(spec, files_dir=None):
     target = SCHEME_MODULES.get(scheme)
     if target is None:
         raise ValueError(
-            f"unknown SHOP_CATALOG scheme {scheme!r} -- registered: "
+            f"unknown SHOP_CATALOG scheme {scheme!r}. registered: "
             f"{sorted(SCHEME_MODULES)} (or a bare path for the YAML backend)")
     mod_name, cls_name = target
     cls = getattr(importlib.import_module(mod_name), cls_name)

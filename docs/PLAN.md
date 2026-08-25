@@ -5,9 +5,9 @@ project's founding document; status annotations show what shipped. Self-hosted c
 
 ## 1 · Thesis
 
-**Nobody had ever built a store on Reticulum.** Not attempted-and-failed, unattempted.
-Research over the ecosystem found zero prior art beyond one unfinished Cashu payments
-experiment. Meanwhile every primitive a store needs already existed:
+**When this started, the only prior art I found on the mesh was one unfinished Cashu
+payments experiment.** Research across the Reticulum ecosystem turned up nothing else
+resembling a store. Every primitive a store needs already existed:
 
 - NomadNet hands every page request a **cryptographically-proven buyer identity**
   (`remote_identity`), a customer account with no signup, no password, no PII.

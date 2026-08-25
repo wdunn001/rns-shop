@@ -100,10 +100,10 @@ if confirmed:
         foot(); raise SystemExit(0)
     else:
         err = out.get("err", "unknown")
-        hint = {"empty_cart": "your cart is empty -- add something first",
+        hint = {"empty_cart": "your cart is empty, add something first",
                 "address_required": "a physical item needs your full shipping "
                                     "address (name, street, city, postal, country)",
-                "not_shipped_to_country": "sorry -- this shop doesn't ship to that "
+                "not_shipped_to_country": "sorry, this shop doesn't ship to that "
                                           "country for one or more items in your cart",
                 "bad_items": "one or more cart items didn't validate"}.get(err, err)
         print(f"""`F{W}┌─`f `!couldn't place the order`!
