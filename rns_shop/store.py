@@ -1,6 +1,6 @@
 """Identity-keyed state: carts, orders, entitlements. SQLite so a merchant can
 run a shop from one file; NomadNet/RNS gives us the customer key (the remote
-identity hash) for free -- there are no accounts, sessions, or passwords."""
+identity hash) for free. There are no accounts, sessions, or passwords."""
 import json
 import os
 import secrets
@@ -43,7 +43,7 @@ _MIGRATIONS = (
     "ALTER TABLE orders ADD COLUMN pay_text TEXT",
     # shipping.py: subtotal is the pre-shipping item total, shipping_fee is
     # what shipping.quote() added (0/NULL when free or not applicable).
-    # `total` (existing column) stays subtotal+shipping_fee -- unchanged
+    # `total` (existing column) stays subtotal+shipping_fee, unchanged
     # meaning for every caller that already reads it.
     "ALTER TABLE orders ADD COLUMN subtotal REAL",
     "ALTER TABLE orders ADD COLUMN shipping_fee REAL",
@@ -64,7 +64,7 @@ class Store:
         self._db.commit()
 
     # ---- carts ----
-    # Persistent per-identity (SQLite, no expiry -- carries across visits by
+    # Persistent per-identity (SQLite, no expiry, carries across visits by
     # design: the buyer's RNS identity IS the account, so "log back in
     # later" is just reconnecting with the same identity). One active cart
     # per identity, same as any standard storefront's server-side cart.
@@ -86,7 +86,7 @@ class Store:
         return items
 
     def cart_set(self, identity, items):
-        """Full replace -- bulk/programmatic clients (a dedicated RNS
+        """Full replace. Bulk/programmatic clients (a dedicated RNS
         client that already tracks its own cart state) use this; the page
         UI uses the incremental ops below instead, so one "add to cart"
         click never needs to already know the whole current cart."""
@@ -94,7 +94,7 @@ class Store:
 
     def cart_add(self, identity, sku, qty):
         """Add `qty` of a sku, incrementing an existing line rather than
-        duplicating it -- standard "add to cart" semantics."""
+        duplicating it. Standard "add to cart" semantics."""
         items = self.cart_get(identity)
         for e in items:
             if e["sku"] == sku:
@@ -106,7 +106,7 @@ class Store:
 
     def cart_remove(self, identity, sku, qty=None):
         """Remove a sku entirely (qty=None), or decrement by qty (dropping
-        the line once it reaches 0) -- standard "remove" / "-" stepper."""
+        the line once it reaches 0). Standard "remove" / "-" stepper."""
         items = self.cart_get(identity)
         out = []
         for e in items:
@@ -121,7 +121,7 @@ class Store:
         return self._cart_save(identity, out)
 
     def cart_set_qty(self, identity, sku, qty):
-        """Exact quantity for one line (qty<=0 removes it) -- the "type a
+        """Exact quantity for one line (qty<=0 removes it). The "type a
         number in the qty box" case, without the caller computing a delta."""
         items = [e for e in self.cart_get(identity) if e["sku"] != sku]
         if qty > 0:

@@ -1,8 +1,8 @@
-"""Shipping cost calculation -- the SAME generic-provider idiom as
+"""Shipping cost calculation: the SAME generic-provider idiom as
 providers.py (payment rails) and catalog.py (catalog sources): one
 interface, any method behind it. A shipping provider turns an order's
 (physical) items into a fee, added to the item subtotal BEFORE payment
-instructions are built -- so every rail (invoice/link/xmr/manual) quotes and
+instructions are built, so every rail (invoice/link/xmr/manual) quotes and
 collects the true total, not just goods.
 
 Shop config (catalog.yaml):
@@ -20,7 +20,7 @@ Shop config (catalog.yaml):
         - {max_kg: null, fee: 15.00}   # null = no upper bound (heaviest tier)
       default_fee: 8.00          # used if NO item in the order carries
                                   # weight data at all (falls back rather
-                                  # than silently charging 0) -- omit to
+                                  # than silently charging 0). Omit to
                                   # fall back to the cheapest tier instead
 
 Per-item weight: catalog.yaml items may set `weight_kg: <number>`; the
@@ -34,15 +34,15 @@ the configured method.
 
 NOT implemented: live carrier rate-shopping (USPS/UPS/FedEx real quotes).
 That needs its own third-party API credential (e.g. EasyPost/Shippo, which
-themselves aggregate the carriers) and would slot in here as one more class
--- the interface is built generic enough for that to be a follow-on, not a
+themselves aggregate the carriers) and would slot in here as one more class.
+The interface is built generic enough for that to be a follow-on, not a
 rewrite, exactly like adding a new payment rail or catalog source.
 """
 
 
 def _physical_summary(catalog, items):
     """(has_physical, total_weight_kg, any_weight_known) over an order's
-    PHYSICAL items only -- digital/service items never factor into a
+    PHYSICAL items only. Digital/service items never factor into a
     shipping fee. total_weight_kg is 0.0 and any_weight_known is False when
     every physical item lacks weight data (the caller decides how to
     degrade, e.g. weight_tiers' default_fee)."""
@@ -71,7 +71,7 @@ class ShippingProvider:
 
     def quote(self, items, address=None):
         """items: [{sku, qty}] (already validated by the caller).
-        -> float fee, or None (not applicable -- e.g. no physical items)."""
+        -> float fee, or None (not applicable, e.g. no physical items)."""
         raise NotImplementedError
 
 
@@ -109,7 +109,7 @@ class WeightTierProvider(ShippingProvider):
         if not tiers:
             return float(self.cfg.get("default_fee", 0))
         if not any_known:
-            # No item in the order carries weight data at all -- charging
+            # No item in the order carries weight data at all. Charging
             # 0 would silently undercharge shipping on every order from a
             # catalog that hasn't set weight_kg, which is worse than an
             # honest flat fallback the merchant explicitly configured.
@@ -129,7 +129,7 @@ BUILTINS = {p.method: p for p in (FreeProvider, FlatProvider, WeightTierProvider
 
 def quote(catalog, items, address=None):
     """The one entry point server.py calls. Builds the configured provider
-    fresh each call (stateless -- shop.shipping can change on a catalog
+    fresh each call (stateless: shop.shipping can change on a catalog
     reload with no cache to invalidate) and NEVER raises: a shipping-config
     bug degrades to "no shipping fee charged" rather than breaking checkout,
     same failure posture as a payment rail returning no instruction."""

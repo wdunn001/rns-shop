@@ -10,7 +10,7 @@ Read-only: shopd never writes to Medusa; orders live in shopd's DB (pushing
 them into Medusa/ERPNext is the merchant-side sync, a later connector).
 
 KNOWN GAP (unchanged from before the CatalogSource refactor): no image
-support -- Medusa's publishable-key /store API doesn't return a usable
+support. Medusa's publishable-key /store API doesn't return a usable
 image URL cheaply here, so items render with no photo. See squarespace.py
 for what a connector with image caching looks like."""
 import json
@@ -35,7 +35,7 @@ class MedusaCatalog(CatalogSource):
         self.shop = shop or {"name": "shop (medusa)", "currency":
                              self.currency.upper()}
         # No ships_to source is fetched from Medusa's /store API here (M5,
-        # untested against a live store) -- same stance as squarespace.py:
+        # untested against a live store). Same stance as squarespace.py:
         # catalog.CatalogSource.ships_ok() is safe-by-default (undeclared =
         # denied everywhere), so this stays unset unless MEDUSA_SHIPS_TO is
         # explicitly configured, rather than silently defaulting worldwide.

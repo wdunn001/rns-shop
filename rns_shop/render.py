@@ -209,13 +209,13 @@ def write_pages(catalog, dest_hex, out_dir):
     def _wrapper(target, depth=1, **env):
         """A tiny per-sku exec page that bakes `env` in via os.environ before
         runpy-ing the shared `target` script (which lives directly in
-        out_dir) -- the "bake the argument into the file path" trick that
+        out_dir). The "bake the argument into the file path" trick that
         keeps every click a bare-link with no literal link-var (not every
         micron client supports those). `depth` = how many directories below
         out_dir this wrapper itself lives in (buy/<sku>.mu = 1,
-        cart/add/<sku>.mu = 2, ...) -- how many '..' hops get back to
+        cart/add/<sku>.mu = 2, ...). How many '..' hops get back to
         out_dir/target at RUNTIME, resolved relative to the wrapper's own
-        __file__ (the container actually serving pages, NOT this process --
+        __file__ (the container actually serving pages, NOT this process:
         so an absolute path baked here would be wrong if the two containers
         mount the shared pages volume at different paths)."""
         lines = ["#!/usr/bin/env python3", "import os, runpy"]
@@ -239,7 +239,7 @@ def write_pages(catalog, dest_hex, out_dir):
         written += 1
 
     # per-item cart wrappers: add-to-cart (+ / ADD TO CART button), decrement
-    # (-), and full removal (x) -- same trick, three two-level-deep dirs
+    # (-), and full removal (x), same trick, three two-level-deep dirs
     # (cart/add/<sku>.mu etc, depth=2) so each click is a bare link to a
     # pre-baked file, never a literal var.
     for subdir, target, extra_env in (

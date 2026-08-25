@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """REMOVE / DECREMENT a cart line: invoked via a per-sku baked wrapper
-(var_sku + var_mode set by write_pages -- /page/cart/remove/<SKU>.mu for a
-full removal, /page/cart/dec/<SKU>.mu for a -1 step -- same file-path-bakes-
+(var_sku + var_mode set by write_pages, /page/cart/remove/<SKU>.mu for a
+full removal, /page/cart/dec/<SKU>.mu for a -1 step, same file-path-bakes-
 the-argument trick as cart_add.mu / buy.mu's per-item checkout)."""
 import json
 import os

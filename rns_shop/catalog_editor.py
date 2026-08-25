@@ -1,20 +1,20 @@
-"""Admin-side mutation helpers for the YAML catalog backend -- read/modify/
+"""Admin-side mutation helpers for the YAML catalog backend: read/modify/
 write catalog.yaml directly, for the admin portal's item editor. Deliberately
 separate from catalog.py (that module is the RUNTIME READ interface every
 backend implements, including read-only ones like Squarespace/Medusa; this
 module is YAML-specific WRITE support that only makes sense for that one
 backend). The editor is offered only when the active catalog is a plain-file
-Catalog (has a real `.path`) -- an externally-sourced catalog has nothing
+Catalog (has a real `.path`). An externally-sourced catalog has nothing
 here to write back to, by design (see catalog.CatalogSource's docstring).
 
 Editing title/description/price/availability/tags/image here covers the
 MeshData block too (render.py's `_meshdata_block` builds +title/+description/
-+price/+availability/+tags/+image straight from these same item fields) --
-there's no separate "MeshData editor" because MeshData isn't separate data,
++price/+availability/+tags/+image straight from these same item fields).
+There's no separate "MeshData editor" because MeshData isn't separate data,
 it's a rendering of these fields.
 
 KNOWN TRADEOFF: round-tripping through yaml.safe_load/safe_dump does not
-preserve comments -- catalog.yaml's extensive inline documentation comments
+preserve comments. catalog.yaml's extensive inline documentation comments
 are LOST the first time an item is saved through this editor. Accepted
 pragmatically (ruamel.yaml's comment-preserving round-trip would be a new
 dependency for a homelab admin tool); the merchant-facing behavior (what
@@ -38,11 +38,11 @@ def save_doc(path, doc):
     pattern. Found live (2026-08-17): catalog.yaml is normally a single-
     file Docker bind mount (docker-compose.yml's `./catalog.yaml:/data/
     catalog.yaml`), and renaming a new inode onto a bind-mount target fails
-    on Linux with `[Errno 16] Device or resource busy` -- the mount holds a
+    on Linux with `[Errno 16] Device or resource busy`. The mount holds a
     reference to that specific path, so os.replace() can create the tmp
     file fine but can never swap it in. Fixed by rendering the FULL YAML
     text first (a bad doc fails here, before the target file is touched at
-    all) and only then overwriting the target's existing inode in place --
+    all) and only then overwriting the target's existing inode in place,
     which the bind mount tolerates fine, it just can't be REPLACED. Tradeoff:
     a process crash mid-write could leave a truncated file, same exposure
     catalog.yaml already has from any direct SSH edit (it was never claiming
@@ -71,7 +71,7 @@ def item_from_form(form):
     """Build a catalog item dict from the editor form's flat string fields.
     Validates against the SAME rules catalog.Catalog.load() enforces at
     runtime (REQUIRED/AVAILABILITY/KINDS) so a bad save fails here, in the
-    editor, with a clear message -- not silently at the next shopd reload."""
+    editor, with a clear message, not silently at the next shopd reload."""
     sku = (form.get("sku") or "").strip()
     title = (form.get("title") or "").strip()
     price_raw = (form.get("price") or "").strip()
@@ -113,7 +113,7 @@ def item_from_form(form):
 
 def upsert_item(doc, original_sku, item):
     """original_sku: the sku this item was loaded under (None for a new
-    item) -- lets the editor RENAME a sku by removing the old entry and
+    item). Lets the editor RENAME a sku by removing the old entry and
     inserting the new one, rather than ending up with both."""
     items = doc.setdefault("items", [])
     if original_sku is not None:
@@ -136,7 +136,7 @@ def delete_item(doc, sku):
 
 def save_image(images_dir, sku, filename, data):
     """Save an uploaded product photo into SHOP_IMAGES (the dir
-    catalog.yaml `image:` filenames are read from -- see render.sync_images
+    catalog.yaml `image:` filenames are read from, see render.sync_images
     and docker-compose.yml's SHOP_IMAGES/SHOP_NODE_FILES split). Named
     <sku>-<contenthash>.<ext> so re-uploading the same photo for the same
     item is idempotent (same name) but a NEW photo never collides with an

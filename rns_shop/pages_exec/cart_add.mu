@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """ADD TO CART: invoked via a per-sku baked wrapper (var_sku set by
-write_pages -- /page/cart/add/<SKU>.mu -- same "bake the sku into the file
+write_pages, /page/cart/add/<SKU>.mu, same "bake the sku into the file
 path" trick buy.mu's per-item checkout uses, so no click here ever needs a
 literal link-var). field_qty comes from the item page's quantity stepper
 when present (the "+" cart-view link omits it -> defaults to 1)."""

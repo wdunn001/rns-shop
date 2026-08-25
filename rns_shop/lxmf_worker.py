@@ -81,12 +81,12 @@ class Worker:
 
     def send_message(self, order, title, body):
         """Merchant-authored, ad-hoc message to a buyer about a specific
-        order (the admin portal's "message customer" action) -- reuses the
+        order (the admin portal's "message customer" action). Reuses the
         SAME inbox-resolution + send path as the automated confirmation/
         receipt messages above, so a merchant note lands exactly where
         those already do (no new discovery/delivery logic to get wrong).
         Returns (ok, reason); reason is None on success, else "no_inbox"
-        (the buyer's LXMF client hasn't announced yet -- same "keep
+        (the buyer's LXMF client hasn't announced yet, same "keep
         waiting" state the automated flow tolerates) or "send_failed"."""
         inbox = self._inbox_for(order)
         if not inbox:

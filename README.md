@@ -5,7 +5,7 @@ Point it at a catalog file and get a storefront on the mesh: browsable micron pa
 a discoverable API, orders keyed to cryptographic buyer identities, and your
 listings surface automatically in [Beacon](https://github.com/wdunn001/beacon) search.
 
-As far as we know, the first e-commerce tooling ever built for Reticulum.
+Store-and-checkout tooling that runs entirely over Reticulum.
 
 ```
 catalog.yaml ──▶ shopd ──▶ storefront pages (.mu + MeshData product records) ─▶ your NomadNet node

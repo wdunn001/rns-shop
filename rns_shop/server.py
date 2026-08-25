@@ -3,7 +3,7 @@
 Follows the proven rns-geo/rns-time template: standalone RNS instance riding a
 local hub, request-handler destination, per-link token-bucket rate limiting,
 health-gated announces, /healthz for monitoring, stable identity on disk
-(NEVER lose the identity volume -- the destination hash is the published trust
+(NEVER lose the identity volume, the destination hash is the published trust
 anchor). Buyer identity comes from link.identify() -> remote_identity.
 """
 import argparse
@@ -20,7 +20,7 @@ from meshapi import service as meshapi_service
 from . import admin_web
 from . import catalog as catalog_mod
 from . import manifest, payments, protocol, providers, render
-from . import shipping as shipping_mod  # aliased -- _submit_order's own
+from . import shipping as shipping_mod  # aliased, _submit_order's own
                                         # `shipping` param (the address
                                         # dict) would otherwise shadow it
 from .store import Store
@@ -175,7 +175,7 @@ def _dispatch(req, identity_hex):
             if e["sku"] in _catalog.items:
                 _store.cart_add(identity_hex, e["sku"], e["qty"])
             else:
-                skipped += 1   # discontinued SKU -- skip rather than fail the whole reorder
+                skipped += 1   # discontinued SKU, skip rather than fail the whole reorder
         return protocol.ok({"items": _store.cart_get(identity_hex), "skipped": skipped}, req)
     if op == protocol.OP_ORDER_SUBMIT:
         items = req.get("items") or _store.cart_get(identity_hex)
@@ -244,7 +244,7 @@ def _submit_order(identity_hex, items, shipping=None, note="", lxmf=None,
                   method=None):
     """Shared order path: RNS op and the node's local checkout both land here.
     Returns dict with err OR the order + its payment instruction. `shipping`
-    here is the buyer's ADDRESS (from checkout) -- see _order_checks, which
+    here is the buyer's ADDRESS (from checkout). See _order_checks, which
     is where the vendor's ships_to restriction is actually enforced, always
     AFTER the address is collected, never before (a buyer has to tell us
     where before we can say yes/no, same as any real storefront)."""
@@ -254,7 +254,7 @@ def _submit_order(identity_hex, items, shipping=None, note="", lxmf=None,
         return {"ok": False, "err": bad}
     subtotal = _subtotal(items)
     # shipping.quote() is a rough estimate by design (flat/weight-tier
-    # config, no live carrier rate-shopping yet -- see shipping.py) and
+    # config, no live carrier rate-shopping yet, see shipping.py) and
     # NEVER raises; a shipping-config bug degrades to "no fee charged"
     # rather than blocking checkout.
     fee = shipping_mod.quote(_catalog, items, addr)
@@ -306,7 +306,7 @@ class _LocalApiHandler(BaseHTTPRequestHandler):
         except Exception:
             return self._json(400, {"ok": False, "err": "bad_request"})
         if self.path == "/order":
-            # Single-item / explicit-items checkout (buy.mu) -- items passed
+            # Single-item / explicit-items checkout (buy.mu). Items passed
             # directly, cart untouched. /cart/checkout below is the OTHER
             # path: submit whatever's already in the stored cart.
             items = _items_valid(req.get("items"))
@@ -366,7 +366,7 @@ class _LocalApiHandler(BaseHTTPRequestHandler):
             return self._json(200, {"ok": True, "items": _store.cart_get(identity),
                                     "skipped": skipped})
         if self.path == "/cart/checkout":
-            # Submit whatever's currently in the stored cart -- the
+            # Submit whatever's currently in the stored cart, the
             # multi-item counterpart to /order's single-item/explicit-items
             # flow. Same _submit_order path either way (address checks,
             # shipping.quote(), payment rails all apply identically).
@@ -405,20 +405,20 @@ class _LocalApiHandler(BaseHTTPRequestHandler):
         if u.path == "/cart":
             items = _store.cart_get(identity)
             # Enrich with catalog details (title/price/currency/availability)
-            # so cart.mu can render a real line-item list from one call --
-            # the stored cart itself is only {sku, qty}.
+            # so cart.mu can render a real line-item list from one call.
+            # The stored cart itself is only {sku, qty}.
             lines, subtotal = [], 0.0
             for e in items:
                 it = _catalog.get(e["sku"])
                 if not it:
-                    continue   # discontinued since it was added -- drop silently from the view
+                    continue   # discontinued since it was added, drop silently from the view
                 line_total = round(it["price"] * e["qty"], 2)
                 subtotal += line_total
                 lines.append({**e, "title": it["title"], "price": it["price"],
                              "currency": it.get("currency", "USD"),
                              "availability": it["availability"], "kind": it["kind"],
                              "line_total": line_total})
-            fee = shipping_mod.quote(_catalog, items, None)   # no address yet -- pre-checkout estimate
+            fee = shipping_mod.quote(_catalog, items, None)   # no address yet, pre-checkout estimate
             return self._json(200, {"ok": True, "items": lines,
                                     "subtotal": round(subtotal, 2),
                                     "shipping_fee_estimate": fee,
@@ -504,12 +504,12 @@ def _health_loop(dest):
             if _catalog.changed():
                 _catalog.load()
                 n = render.write_pages(_catalog, _state["dest"], _pages_out)
-                # Sync product images on EVERY reload, not just at startup --
-                # otherwise an image dropped into SHOP_IMAGES after boot (by
+                # Sync product images on EVERY reload, not just at startup.
+                # Otherwise an image dropped into SHOP_IMAGES after boot (by
                 # hand, or via the admin portal's catalog editor) never
                 # actually reaches the node's /file/ volume, even though the
                 # re-rendered pages/MeshData now reference it. Found while
-                # wiring the editor's image upload -- this was a pre-
+                # wiring the editor's image upload. This was a pre-
                 # existing gap (sync_images only ran once, before this loop
                 # even started).
                 ni = render.sync_images(_catalog, images_dir, node_files_dir)
@@ -564,7 +564,7 @@ def main():
 
     # _files_dir must exist BEFORE the catalog loads: a connector whose
     # upstream serves images from an external URL (Squarespace, ...) caches
-    # them here on first load (see catalog.CatalogSource / squarespace.py --
+    # them here on first load (see catalog.CatalogSource / squarespace.py:
     # NomadNet clients can't fetch a clearnet CDN URL, so this is the only
     # way a mesh client ever sees the photo).
     _files_dir = os.path.abspath(args.files)
@@ -632,11 +632,11 @@ def main():
 
     _start_local_api(int(os.environ.get("SHOP_LOCAL_API", "8219")))
 
-    # Merchant admin portal -- PRIVATE, binds 0.0.0.0 unlike the loopback-
+    # Merchant admin portal. PRIVATE, binds 0.0.0.0 unlike the loopback-
     # only local API above, because it's meant to be reached through the
     # Caddy edge (Authentik-gated vhost), not called by same-host page
     # scripts. See admin_web.py's module docstring for the full trust
-    # model -- this process implements no auth itself, Caddy's forward-auth
+    # model. This process implements no auth itself, Caddy's forward-auth
     # is the only gate, so this MUST NEVER get a public vhost or a raw
     # port-forward (see no-raw-public-port-exposure memory; the buyer-
     # facing demo payment link already needed relearning that lesson once).

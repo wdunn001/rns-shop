@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """MY CART: multi-item cart view + checkout. Line qty is adjusted via the
 per-sku +/- wrappers (cart/add/<sku>.mu, cart/dec/<sku>.mu) and removal via
-cart/remove/<sku>.mu (see render.py's write_pages) -- same "bake the sku into
+cart/remove/<sku>.mu (see render.py's write_pages). Same "bake the sku into
 the file path" trick buy.mu's per-item checkout already uses, so no click
 here ever needs a literal link-var. Checkout re-uses buy.mu's two-step
 address-form pattern (CONFIRM enumerates bare field names + a step marker;
-pay-AFTER-ordering, no method picker -- see buy.mu's own docstring for why)."""
+pay-AFTER-ordering, no method picker, see buy.mu's own docstring for why)."""
 import json
 import os
 import urllib.error

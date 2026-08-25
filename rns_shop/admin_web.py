@@ -1,23 +1,23 @@
-"""Merchant admin portal -- a server-side web dashboard over the SAME
+"""Merchant admin portal: a server-side web dashboard over the SAME
 `_store`/`_catalog`/`_rails`/`_lxmf_worker` objects shopd already holds in
-memory (no separate DB connection, no separate container -- same "bolt a
+memory (no separate DB connection, no separate container, the same "bolt a
 second HTTP surface onto the existing process" pattern beacon.web uses for
 its analytics dashboard). Wraps the operations shopctl (admin.py) already
 offered via docker-exec (list/show/mark-paid/entitle), adds a merchant->
 buyer message action over the existing LXMF channel, and a catalog.yaml
-item editor (add/edit/delete items, upload product photos) -- see
+item editor (add/edit/delete items, upload product photos). See
 catalog_editor.py for why editing item fields IS editing the MeshData block
 (there's no separate MeshData surface; it's rendered FROM these fields).
 
 PRIVATE BY DESIGN: binds 0.0.0.0 (unlike the loopback-only /order local
 API) because it's meant to be reached through the Caddy edge on .229:PORT,
-Authentik-gated -- see the `rns-shop-admin.quasarke.net` vhost (mirrors
+Authentik-gated. See the `rns-shop-admin.quasarke.net` vhost (mirrors
 beacon's `rns-analytics.quasarke.net`: internal-only, `import authentik
 192.168.1.229:PORT`, mario-ca TLS). This module implements NO auth itself;
 Caddy's forward-auth is the only thing standing between this port and order
-data (identities, shipping addresses, totals) plus catalog-write access --
-it must never be exposed any other way (no public vhost, no raw port-
-forward -- see no-raw-public-port-exposure memory, the same lesson the
+data (identities, shipping addresses, totals) plus catalog-write access.
+It must never be exposed any other way (no public vhost, no raw port-
+forward, see no-raw-public-port-exposure memory, the same lesson the
 buyer-facing demo payment link needed relearning once already)."""
 import html
 import json
@@ -80,7 +80,7 @@ def _nav():
 
 
 # ---------------------------------------------------------------------------
-# Minimal multipart/form-data parser -- stdlib's cgi.FieldStorage is
+# Minimal multipart/form-data parser. stdlib's cgi.FieldStorage is
 # deprecated (removed in 3.13); this is deliberately small, only handling
 # what the catalog editor's one form (a handful of text fields + one
 # optional file) actually needs, not general MIME.
@@ -243,7 +243,7 @@ you know to try again later, same as the automated flow's own retry window.</p>
 
 
 # ---------------------------------------------------------------------------
-# Catalog editor (YAML backend only -- see catalog_editor.py)
+# Catalog editor (YAML backend only, see catalog_editor.py)
 # ---------------------------------------------------------------------------
 def _catalog_list_html(catalog):
     path = getattr(catalog, "path", None)
@@ -324,10 +324,10 @@ onsubmit="return confirm('Delete {_esc(sku)}? This cannot be undone.')">
 def start(store, catalog_ref, rails_ref, port, worker_ref=None, images_dir=None):
     """catalog_ref/rails_ref/worker_ref: zero-arg callables returning the
     CURRENT _catalog/_rails/_lxmf_worker (server.py's catalog can be
-    replaced wholesale on a reload -- see _health_loop -- so this always
+    replaced wholesale on a reload (see _health_loop), so this always
     reads the live reference, never a stale one captured at start() time).
     images_dir: SHOP_IMAGES (where catalog.yaml `image:` filenames are read
-    from) -- needed so the catalog editor's photo upload writes to the same
+    from). Needed so the catalog editor's photo upload writes to the same
     place render.sync_images() already reads from."""
     lock = threading.Lock()
 

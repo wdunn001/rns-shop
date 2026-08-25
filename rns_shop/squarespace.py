@@ -1,12 +1,12 @@
 """Squarespace Commerce catalog connector: read products (+ variants, images,
 stock) from a real Squarespace store's Commerce API and present them through
-the same CatalogSource interface every other backend uses (YAML, Medusa) --
+the same CatalogSource interface every other backend uses (YAML, Medusa),
 so shopd can sell a Squarespace-sourced catalog over the mesh with zero
 server.py changes. Read-only, same stance as Medusa: shopd never writes back
 to Squarespace; orders live in shopd's own DB, not Squarespace's.
 
 Usage: SHOP_CATALOG=squarespace://commerce (the URL is just a scheme
-selector, no secrets in it -- the query-string-embedded key pattern
+selector, no secrets in it. The query-string-embedded key pattern
 medusa:// uses is fine for a publishable/read key, but Squarespace's
 Commerce API key is a full read/write-capable secret, so it comes from env
 instead, never from a config value that ends up in a compose file or a
@@ -16,7 +16,7 @@ Required env:
   SQUARESPACE_API_KEY     Settings > Advanced > API Keys in the Squarespace
                            admin; needs at least Products + Inventory read.
   SQUARESPACE_SHIPS_TO    comma-separated ISO-3166 alpha-2 codes, or the
-                           literal value WORLDWIDE -- NO DEFAULT, see HONEST
+                           literal value WORLDWIDE. NO DEFAULT, see HONEST
                            LIMITATION below. Physical-item checkout is
                            refused for every destination until this is set
                            (catalog.CatalogSource.ships_ok is safe-by-
@@ -28,7 +28,7 @@ Optional env:
   SQUARESPACE_API_VERSION default "1.0"
 
 Squarespace Commerce API notes (developers.squarespace.com/commerce-apis,
-checked 2026-08-17 -- re-verify against live docs before relying on exact
+checked 2026-08-17. Re-verify against live docs before relying on exact
 field names, this is one connector's read of them, not a mirror of the spec):
   - Base: https://api.squarespace.com/{api-version}/commerce/...
   - Auth: `Authorization: Bearer <API key>`
@@ -38,20 +38,20 @@ field names, this is one connector's read of them, not a mirror of the spec):
     variants[] (sku, pricing{basePrice,salePrice,onSale}, stock{quantity,
     unlimited}, shippingMeasurements{weight,dimensions}).
   - Inventory (stock) is ALSO readable live per-variant via
-    GET /commerce/inventory/{ids} -- deliberately NOT used here: variant.
+    GET /commerce/inventory/{ids}. Deliberately NOT used here: variant.
     stock is already embedded in the product list response, so a separate
     poll would just be a second round trip for numbers this connector
     already has.
   - HONEST LIMITATION: the public Commerce API does not expose a per-product
-    or store-wide "ships to these countries" list as of this writing --
-    shipping ZONES are dashboard-only configuration with no read endpoint
+    or store-wide "ships to these countries" list as of this writing.
+    Shipping ZONES are dashboard-only configuration with no read endpoint
     found. ships_to therefore comes from SQUARESPACE_SHIPS_TO (shop-level,
     like catalog.yaml's shop.ships_to default) rather than being read live;
     if that's wrong for a given store, fix the env var, not this connector.
     Package weight/dimensions (shippingMeasurements) ARE available per
     variant and are captured as shipping_weight_kg/shipping_dims_cm on the
     item dict for a future real-rate-shopping provider, even though nothing
-    reads them yet -- documented rather than silently dropped.
+    reads them yet. Documented rather than silently dropped.
 """
 import hashlib
 import json
@@ -70,7 +70,7 @@ def _kg(weight):
     """shippingMeasurements.weight -> kg float, or None. Squarespace's unit
     enum has been seen as KILOGRAM/POUND; anything else is left unconverted
     (better a slightly-off number on an unanticipated unit than a silent
-    wrong conversion -- flagged via the 'unit' passthrough if ever needed)."""
+    wrong conversion, flagged via the 'unit' passthrough if ever needed)."""
     if not weight or weight.get("value") is None:
         return None
     v = float(weight["value"])
@@ -79,7 +79,7 @@ def _kg(weight):
 
 
 class SquarespaceCatalog(CatalogSource):
-    REFRESH = 300  # seconds between polls -- same cadence as MedusaCatalog
+    REFRESH = 300  # seconds between polls, same cadence as MedusaCatalog
 
     def __init__(self, url, files_dir=None):
         super().__init__(files_dir=files_dir)
@@ -94,8 +94,8 @@ class SquarespaceCatalog(CatalogSource):
         currency = os.environ.get("SQUARESPACE_CURRENCY", "usd").upper()
         # REQUIRED, no silent default. Squarespace's public Commerce API does
         # not expose a real ships-to-country list (see module docstring's
-        # HONEST LIMITATION), so there is no ground truth to fall back to --
-        # only the merchant knows where they're actually willing to ship
+        # HONEST LIMITATION), so there is no ground truth to fall back to.
+        # Only the merchant knows where they're actually willing to ship
         # physical goods, and catalog.CatalogSource.ships_ok() is safe-by-
         # default (undeclared = denied everywhere) specifically so a
         # connector like this one can never turn "nobody set this yet" into
@@ -127,7 +127,7 @@ class SquarespaceCatalog(CatalogSource):
             return json.loads(r.read())
 
     def _all_products(self):
-        """Walk every page (cursor pagination) -- see module docstring."""
+        """Walk every page (cursor pagination). See module docstring."""
         cursor = None
         while True:
             data = self._get("/commerce/products", {"cursor": cursor} if cursor else None)
@@ -140,12 +140,12 @@ class SquarespaceCatalog(CatalogSource):
 
     def _cache_image(self, url):
         """Download a remote product image into the shop's /file/ directory
-        (NomadNet clients can't fetch an external clearnet CDN URL -- see
+        (NomadNet clients can't fetch an external clearnet CDN URL, see
         catalog.CatalogSource's files_dir docstring) and return the local
         filename render.py's _image_bits() expects, or None on any failure
         (a missing photo is never worth breaking catalog sync over).
         Content-addressed by URL hash so a re-poll (every REFRESH seconds)
-        skips the download entirely once an image is already cached --
+        skips the download entirely once an image is already cached.
         Squarespace's CDN URLs embed a stable asset id, so the same product
         photo always hashes to the same local filename."""
         if not url or not self.files_dir:
@@ -165,7 +165,7 @@ class SquarespaceCatalog(CatalogSource):
                 fh.write(data)
             os.replace(tmp, dest)
             return name
-        except Exception:  # noqa: BLE001 -- a photo is a nice-to-have, never a blocker
+        except Exception:  # noqa: BLE001. A photo is a nice-to-have, never a blocker
             return None
 
     def load(self):
@@ -177,7 +177,7 @@ class SquarespaceCatalog(CatalogSource):
             variants = p.get("variants") or []
             if not variants:
                 # Defensive fallback for a single-SKU product shape with no
-                # variants array at all -- mirrors medusa.py's `or [{}]`.
+                # variants array at all, mirrors medusa.py's `or [{}]`.
                 variants = [{"sku": p.get("id"), "pricing": p.get("pricing"),
                             "stock": {"unlimited": True}}]
             imgs = p.get("images") or []
@@ -190,7 +190,7 @@ class SquarespaceCatalog(CatalogSource):
                 price_obj = (pricing.get("salePrice") if pricing.get("onSale")
                             else pricing.get("basePrice"))
                 if not price_obj or price_obj.get("value") is None:
-                    continue   # unpriced variant -- can't sell it, skip rather than crash
+                    continue   # unpriced variant, can't sell it, skip rather than crash
                 stock = v.get("stock") or {}
                 if kind == "digital":
                     availability = "digital"

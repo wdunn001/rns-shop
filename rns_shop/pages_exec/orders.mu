@@ -3,7 +3,7 @@
 their proven identity. Digital goods they own are delivered right here.
 Each order also gets a "reorder" action: a hidden text field prefilled with
 THAT order's id, submitted by name (bare-name enumerated link, no literal
-link-var) -- since order ids are only known at RUNTIME (unlike SKUs, they
+link-var), since order ids are only known at RUNTIME (unlike SKUs, they
 can't be baked into a per-order wrapper file at catalog-render time the way
 buy/<sku>.mu or cart/add/<sku>.mu are)."""
 import json
